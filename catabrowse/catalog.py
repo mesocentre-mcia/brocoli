@@ -23,7 +23,10 @@ class Catalog(object):
     def download_directories(self, pathlist, destdir):
         raise NotImplementedError
 
-    def upload(self, files, path):
+    def upload_files(self, files, path):
+        raise NotImplementedError
+
+    def upload_directories(self, dirs, path):
         raise NotImplementedError
 
     def delete_files(self, files):
@@ -68,17 +71,18 @@ class OSCatalog(Catalog):
                 shutil.rmtree(ddir)
             shutil.copytree(path, ddir)
 
-    def upload(self, files, path):
+    def upload_files(self, files, path):
         for f in files:
-            if os.path.isdir(f):
-                # shutil.copytree needs a fresh new destination directory
-                ddir = os.path.join(path, os.path.basename(f))
-                if os.path.exists(ddir):
-                    shutil.rmtree(ddir)
-                print_('copytree', path, ddir)
-                shutil.copytree(f, ddir)
-            else:
-                shutil.copy2(f, path)
+            shutil.copy2(f, path)
+
+    def upload_directories(self, dirs, path):
+        for d in dirs:
+            # shutil.copytree needs a fresh new destination directory
+            ddir = os.path.join(path, os.path.basename(d))
+            if os.path.exists(ddir):
+                shutil.rmtree(ddir)
+
+            shutil.copytree(d, ddir)
 
     def delete_files(self, files):
         for f in files:
