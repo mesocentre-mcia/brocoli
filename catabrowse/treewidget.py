@@ -41,7 +41,7 @@ class TreeWidget(tk.Frame):
                                      open=True, values=values)
         self.process_directory(root_node, abspath)
 
-        self.tree.bind('<<TreeviewOpen>>', self.opencb)
+        self.tree.bind('<<TreeviewOpen>>', self.open_cb)
 
         self.tree.grid(row=0, column=0, sticky='nsew')
         ysb.grid(row=0, column=1, sticky='ns')
@@ -57,10 +57,19 @@ class TreeWidget(tk.Frame):
         self.context_menu = tk.Menu(self.tree, tearoff=False)
 
         def _map(e):
+            former_sel = self.tree.selection()
+            def selchanged(e):
+                if former_sel != self.tree.selection():
+                    self.context_menu.unpost()
+
             self.context_menu_mapped = True
+            self.tree.bind('<<TreeviewSelect>>', selchanged)
+
 
         def _unmap(e):
             self.context_menu_mapped = False
+            self.tree.bind('<<TreeviewSelect>>')
+
 
         self.context_menu_mapped = False
         self.context_menu.bind('<Map>', _map)
@@ -89,11 +98,15 @@ class TreeWidget(tk.Frame):
         if not item:
             return
 
-        if item in self.tree.selection():
+        selection = self.tree.selection()
+        if item in selection:
             if self.context_menu_mapped:
                 self.context_menu.unpost()
                 return
         else:
+            if selection and self.context_menu_mapped:
+                self.context_menu.unpost()
+                return
             self.tree.selection_set(item)
 
         selection = self.tree.selection()
@@ -188,7 +201,7 @@ class TreeWidget(tk.Frame):
         self.catalog.mkdir(self.catalog.join(parent, name))
         self.process_directory(parent, parent)
 
-    def opencb(self, event):
+    def open_cb(self, event):
         iid = self.tree.focus()
         children = self.tree.get_children(iid)
         if len(children) == 1 and \
