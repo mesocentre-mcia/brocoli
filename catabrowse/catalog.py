@@ -1,12 +1,10 @@
 import os
 import shutil
+from datetime import datetime
 
 from six import print_
 
 class Catalog(object):
-    def abspath(self, path):
-        raise NotImplementedError
-
     def lstat(self, path):
         raise NotImplementedError
 
@@ -38,11 +36,16 @@ class Catalog(object):
         raise NotImplementedError
 
 class OSCatalog(Catalog):
-    def abspath(self, path):
-        return os.path.abspath(path)
-
     def lstat(self, path):
-        return os.lstat(path)
+        stats = os.lstat(path)
+
+        ret = {}
+
+        ret['user'] = stats.st_uid
+        ret['size'] = stats.st_size
+        ret['mtime'] = datetime.fromtimestamp(stats.st_mtime)
+
+        return ret
 
     def listdir(self, path):
         return os.listdir(path)

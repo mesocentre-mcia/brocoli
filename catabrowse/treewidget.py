@@ -24,7 +24,7 @@ class TreeWidget(tk.Frame):
         self.catalog = catalog
         self.path = path
 
-        self.tree = ttk.Treeview(self, columns=('owner', 'size'))
+        self.tree = ttk.Treeview(self, columns=('owner', 'size', 'modification time'))
 
         ysb = ttk.Scrollbar(self, orient='vertical', command=self.tree.yview)
         xsb = ttk.Scrollbar(self, orient='horizontal', command=self.tree.xview)
@@ -33,13 +33,13 @@ class TreeWidget(tk.Frame):
         self.tree.heading('#0', text='path', anchor='w')
         self.tree.heading('owner', text='owner', anchor='w')
         self.tree.heading('size', text='size', anchor='w')
+        self.tree.heading('modification time', text='modification time', anchor='w')
 
-        abspath = self.catalog.abspath(path)
-        st = self.catalog.lstat(abspath)
-        values = [st.st_uid, st.st_size]
-        root_node = self.tree.insert('', 'end', iid=abspath, text=abspath,
+        st = self.catalog.lstat(path)
+        values = [st['user'], st['size'], st['mtime']]
+        root_node = self.tree.insert('', 'end', iid=path, text=path,
                                      open=True, values=values)
-        self.process_directory(root_node, abspath)
+        self.process_directory(root_node, path)
 
         self.tree.bind('<<TreeviewOpen>>', self.open_cb)
 
@@ -224,7 +224,7 @@ class TreeWidget(tk.Frame):
             abspath = self.catalog.join(path, p)
             isdir = self.catalog.isdir(abspath)
             st = self.catalog.lstat(abspath)
-            values = [st.st_uid, st.st_size]
+            values = [st['user'], st['size'], st['mtime']]
             oid = self.tree.insert(parent, 'end', iid=abspath, text=p,
                                    open=False, values=values)
 
