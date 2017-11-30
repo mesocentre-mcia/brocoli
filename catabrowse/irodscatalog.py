@@ -36,8 +36,8 @@ class iRODSCatalog(catalog.Catalog):
                                     password=decode(scrambled_password),
                                     zone=zone)
 
-        self.dom = DataObjectManager(self.session)
-        self.cm = CollectionManager(self.session)
+        self.dom = self.session.data_objects
+        self.cm = self.session.collections
 
     def splitname(self, path):
         return path.rsplit('/', 1)
@@ -125,7 +125,6 @@ class iRODSCatalog(catalog.Catalog):
             if not os.path.isdir(destdir):
                 raise e
 
-        # FIXME: dobj.path not ok (is physical path on resource)
         self.download_files([dobj.path for dobj in list(coll.data_objects)],
                             destdir)
 
@@ -178,12 +177,24 @@ class iRODSCatalog(catalog.Catalog):
             self._upload_dir(d, cpath)
 
     def delete_files(self, files):
+        #q = self.session.query().filter(DataObject.owner_name == 'pigay').count(DataObject.id).sum(DataObject.size).all()
+        #print q
+        number = len(files)
+
+        i = 0
         for f in files:
             self.dom.unlink(f, force=True)
+            i += 1
+            yield i, number
 
     def delete_directories(self, directories):
+        number = len(directories)
+
+        i = 0
         for d in directories:
             self.cm.remove(d, recurse=True, force=True)
+            i += 1
+            yield i, number
 
     def mkdir(self, path):
         self.cm.create(path)

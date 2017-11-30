@@ -85,12 +85,21 @@ class OSCatalog(Catalog):
             shutil.copytree(d, ddir)
 
     def delete_files(self, files):
+        number = len(files)
+        i = 0
         for f in files:
             os.unlink(f)
+            i += 1
+            yield i, number
+
 
     def delete_directories(self, directories):
+        number = len(directories)
+        i = 0
         for d in directories:
             shutil.rmtree(d)
+            i += 1
+            yield i, number
 
     def mkdir(self, path):
         os.mkdir(path)

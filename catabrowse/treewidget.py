@@ -1,4 +1,5 @@
 from . import catalog
+from . import progress_dialog
 
 import six
 from six import print_
@@ -21,6 +22,7 @@ class TreeWidget(tk.Frame):
     def __init__(self, master, catalog, path):
         tk.Frame.__init__(self, master)
 
+        self.masteer = master
         self.catalog = catalog
         self.path = path
 
@@ -57,9 +59,9 @@ class TreeWidget(tk.Frame):
         self.context_menu = tk.Menu(self.tree, tearoff=False)
 
         def _map(e):
-            former_sel = self.tree.selection()
+            former_sel = self.get_selection()
             def selchanged(e):
-                if former_sel != self.tree.selection():
+                if former_sel != self.get_selection():
                     self.context_menu.unpost()
 
             self.context_menu_mapped = True
@@ -92,13 +94,23 @@ class TreeWidget(tk.Frame):
         else:
             self.tree.bind('<3>', self._select_and_pop)
 
+    def get_selection(self):
+        ret = []
+
+        for e in self.tree.selection():
+            if e.startswith('__'):
+                continue
+            ret.append(e)
+
+        return ret
+
     def _select_and_pop(self, e):
         item = self.tree.identify_row(e.y)
 
         if not item:
             return
 
-        selection = self.tree.selection()
+        selection = self.get_selection()
         if item in selection:
             if self.context_menu_mapped:
                 self.context_menu.unpost()
@@ -109,7 +121,7 @@ class TreeWidget(tk.Frame):
                 return
             self.tree.selection_set(item)
 
-        selection = self.tree.selection()
+        selection = self.get_selection()
         state = 'disabled'
         if len(selection) == 1:
             item = selection[0]
@@ -142,7 +154,7 @@ class TreeWidget(tk.Frame):
         return files, directories
 
     def download(self):
-        selection = self.tree.selection()
+        selection = self.get_selection()
         destdir = filedialog.askdirectory()
         if not destdir:
             return
@@ -155,7 +167,7 @@ class TreeWidget(tk.Frame):
         self.catalog.download_directories(directories, destdir)
 
     def upload(self):
-        path = self.tree.selection()[0]
+        path = self.get_selection()[0]
         files = filedialog.askopenfilenames()
         if not files:
             return
@@ -166,7 +178,7 @@ class TreeWidget(tk.Frame):
         self.process_directory(path, path)
 
     def upload_directory(self):
-        path = self.tree.selection()[0]
+        path = self.get_selection()[0]
         directory = filedialog.askdirectory()
         if not directory:
             return
@@ -177,7 +189,7 @@ class TreeWidget(tk.Frame):
         self.process_directory(path, path)
 
     def delete(self):
-        selection = self.tree.selection()
+        selection = self.get_selection()
 
         print_('deleting', selection)
 
@@ -185,14 +197,23 @@ class TreeWidget(tk.Frame):
 
         parents = {self.tree.parent(f) for f in selection}
 
-        self.catalog.delete_files(files)
-        self.catalog.delete_directories(directories)
+        if files:
+            progress = progress_dialog.ProgressDialog(self.master, 'delete {} files'.format(len(files)))
+            for p, n in self.catalog.delete_files(files):
+                progress.set((100 * p) / n)
+            progress.finish()
+
+        if directories:
+            progress = progress_dialog.ProgressDialog(self.master, 'delete {} directories'.format(len(files)))
+
+            for p, n in self.catalog.delete_directories(directories):
+                progress.set((100 * p) / n)
 
         for parent in parents:
             self.process_directory(parent, parent)
 
     def mkdir(self):
-        parent = self.tree.selection()[0]
+        parent = self.get_selection()[0]
         name = simpledialog.askstring('Create new directory',
                                       '{} directory name'.format(parent))
         if not name:
