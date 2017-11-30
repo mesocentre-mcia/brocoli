@@ -113,8 +113,9 @@ class iRODSCatalog(catalog.Catalog):
         return '/'.join(args)
 
     def download_files(self, pathlist, destdir):
+        options = {kw.FORCE_FLAG_KW: ''}
         for p in pathlist:
-            self.dom._download(p, destdir, options={'forceFlag': True})
+            self.dom._download(p, destdir, **options)
 
     def _download_coll(self, coll, destdir):
         destdir = os.path.join(destdir, coll.name)
@@ -125,7 +126,8 @@ class iRODSCatalog(catalog.Catalog):
                 raise e
 
         # FIXME: dobj.path not ok (is physical path on resource)
-        self.download_files([dobj.path for dobj in list(coll.data_objects)], destdir)
+        self.download_files([dobj.path for dobj in list(coll.data_objects)],
+                            destdir)
 
         for subcoll in coll.subcollections:
             self._download_coll(subcoll, destdir)
@@ -138,9 +140,9 @@ class iRODSCatalog(catalog.Catalog):
     def upload_files(self, files, path):
         if not path.endswith('/'):
             path = path + '/'
+        options = {kw.FORCE_FLAG_KW: '', kw.ALL_KW: ''}
         for f in files:
-            self.dom.put(f, path, options={kw.FORCE_FLAG_KW: '',
-                                           kw.ALL_KW: ''})
+            self.dom.put(f, path, **options)
 
     def _upload_dir(self, dir_, path):
         files = []
