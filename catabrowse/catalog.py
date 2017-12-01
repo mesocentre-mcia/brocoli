@@ -60,22 +60,36 @@ class OSCatalog(Catalog):
         return os.path.join(*args)
 
     def download_files(self, pathlist, destdir):
+        number = len(files)
+        i = 0
         for path in pathlist:
             shutil.copy2(path, destdir)
+            i += 1
+            yield i, number
 
     def download_directories(self, pathlist, destdir):
+        number = len(pathlist)
+        i = 0
         for path in pathlist:
             # shutil.copytree needs a fresh new destination directory
             ddir = os.path.join(destdir, os.path.basename(path))
             if os.path.exists(ddir):
                 shutil.rmtree(ddir)
             shutil.copytree(path, ddir)
+            i += 1
+            yield i, number
 
     def upload_files(self, files, path):
+        number = len(files)
+        i = 0
         for f in files:
             shutil.copy2(f, path)
+            i += 1
+            yield i, number
 
     def upload_directories(self, dirs, path):
+        number = len(dirs)
+        i = 0
         for d in dirs:
             # shutil.copytree needs a fresh new destination directory
             ddir = os.path.join(path, os.path.basename(d))
@@ -83,6 +97,8 @@ class OSCatalog(Catalog):
                 shutil.rmtree(ddir)
 
             shutil.copytree(d, ddir)
+            i += 1
+            yield i, number
 
     def delete_files(self, files):
         number = len(files)

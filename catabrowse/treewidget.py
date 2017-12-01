@@ -163,7 +163,12 @@ class TreeWidget(tk.Frame):
 
         files, directories = self._split_files_and_directories(selection)
 
-        self.catalog.download_files(files, destdir)
+        if files:
+            progress = progress_dialog.ProgressDialog(self.master, 'download {} files'.format(len(files)))
+            for p, n in self.catalog.download_files(files, destdir):
+                progress.set(p, n)
+            progress.finish()
+
         self.catalog.download_directories(directories, destdir)
 
     def upload(self):
@@ -173,7 +178,11 @@ class TreeWidget(tk.Frame):
             return
 
         print_('uploading', files, 'to', path)
-        self.catalog.upload_files(files, path)
+        if files:
+            progress = progress_dialog.ProgressDialog(self.master, 'upload {} files'.format(len(files)))
+            for p, n in self.catalog.upload_files(files, path):
+                progress.set(p, n)
+            progress.finish()
 
         self.process_directory(path, path)
 
@@ -200,14 +209,14 @@ class TreeWidget(tk.Frame):
         if files:
             progress = progress_dialog.ProgressDialog(self.master, 'delete {} files'.format(len(files)))
             for p, n in self.catalog.delete_files(files):
-                progress.set((100 * p) / n)
+                progress.set(p, n)
             progress.finish()
 
         if directories:
             progress = progress_dialog.ProgressDialog(self.master, 'delete {} directories'.format(len(files)))
 
             for p, n in self.catalog.delete_directories(directories):
-                progress.set((100 * p) / n)
+                progress.set(p, n)
 
         for parent in parents:
             self.process_directory(parent, parent)

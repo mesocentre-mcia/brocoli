@@ -29,6 +29,25 @@ def parse_env3(path):
 
     return ret
 
+def local_tree_stats(dirs):
+    total_nfiles = 0
+    total_size = 0
+
+    for d in dirs:
+        nfiles = 0
+        size = 0
+
+        for root, dirs, files in os.walk(d):
+            nfiles += len(files)
+            size += sum(os.path.getsize(os.path.join(root, name)) for name in files)
+
+        total_nfiles += nfiles
+        total_size += size
+
+    return total_nfiles, total_size
+
+def local_files_stats(files):
+    return len(files), sum(os.path.getsize(f) for f in files)
 
 class iRODSCatalog(catalog.Catalog):
     def __init__(self, host, port, user, zone, scrambled_password):
@@ -114,19 +133,25 @@ class iRODSCatalog(catalog.Catalog):
 
     def download_files(self, pathlist, destdir):
         options = {kw.FORCE_FLAG_KW: ''}
+
+        number = len(pathlist)
+        i = 0
         for p in pathlist:
             self.dom._download(p, destdir, **options)
+            i += 1
+            yield i, number
 
     def _download_coll(self, coll, destdir):
         destdir = os.path.join(destdir, coll.name)
         try:
             os.makedirs(destdir)
-        except OSError as e:
+        except OSError:
             if not os.path.isdir(destdir):
-                raise e
+                raise
 
-        self.download_files([dobj.path for dobj in list(coll.data_objects)],
-                            destdir)
+        pathlist = [dobj.path for dobj in list(coll.data_objects)]
+        for _ in self.download_files(pathlist, destdir):
+            pass
 
         for subcoll in coll.subcollections:
             self._download_coll(subcoll, destdir)
@@ -139,9 +164,16 @@ class iRODSCatalog(catalog.Catalog):
     def upload_files(self, files, path):
         if not path.endswith('/'):
             path = path + '/'
+
         options = {kw.FORCE_FLAG_KW: '', kw.ALL_KW: ''}
+
+        number = len(files)
+        i = 0
         for f in files:
             self.dom.put(f, path, **options)
+
+            i += 1
+            yield i, number
 
     def _upload_dir(self, dir_, path):
         files = []
@@ -153,7 +185,8 @@ class iRODSCatalog(catalog.Catalog):
             else:
                 files.append(abspath)
 
-        self.upload_files(files, path)
+        for _ in self.upload_files(files, path):
+            pass
 
         for abspath, name in subdirs:
             cpath = self.join(path, name)

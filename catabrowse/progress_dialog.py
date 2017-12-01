@@ -15,11 +15,15 @@ class ProgressDialog:
         self.label = tk.Label(self.toplevel, text=opname + ' progress: 0%')
         self.label.pack()
 
-        self.progress = ttk.Progressbar(self.toplevel, orient='horizontal', mode='determinate', variable=self.count, maximum = self.maximum)
+        self.progress = ttk.Progressbar(self.toplevel, orient='horizontal',
+                                        mode='determinate',
+                                        variable=self.count,
+                                        maximum=self.maximum)
+
         self.progress.pack(expand=True, fill=tk.BOTH, side=tk.TOP)
 
-    def set(self, value):
-        value = int(value)
+    def set(self, value, maximum = 100):
+        value = int((100 * value) / maximum)
         if value == self.count.get():
             return
 
