@@ -2,6 +2,28 @@
 from six.moves import tkinter as tk
 from six.moves import tkinter_ttk as ttk
 
+class UnboundedProgressDialog:
+    def __init__(self, parent, opname, **kwargs):
+        self.toplevel = tk.Toplevel(parent, **kwargs)
+        self.toplevel.transient(parent)
+
+        self.opname = opname
+
+        self.label = tk.Label(self.toplevel, text=opname)
+        self.label.pack()
+
+        self.progress = ttk.Progressbar(self.toplevel, orient='horizontal',
+                                        mode='indeterminate')
+
+        self.progress.pack(expand=True, fill=tk.BOTH, side=tk.TOP)
+
+    def step(self, speed=1):
+        self.progress.step(speed)
+        self.toplevel.update_idletasks()
+
+    def finish(self):
+        self.toplevel.destroy()
+
 class ProgressDialog:
     def __init__(self, parent, opname, **kwargs):
         self.maximum = 100
@@ -31,14 +53,6 @@ class ProgressDialog:
         self.label.config(text=self.opname + ' progress: {}%'.format(value))
         self.toplevel.update_idletasks()
 
-        return self.isfinished()
-
-    def isfinished(self):
-        ret = self.count.get() >= self.maximum
-        if ret:
-            self.finish()
-        return ret
-
     def finish(self):
         self.toplevel.destroy()
 
@@ -47,5 +61,13 @@ def progress_from_generator(master, message, generator):
 
     for p, n in generator:
         progress.set(p, n)
+
+    progress.finish()
+
+def unbounded_progress_from_generator(master, message, generator):
+    progress = UnboundedProgressDialog(master, message)
+
+    for _ in generator:
+        progress.step(4)
 
     progress.finish()

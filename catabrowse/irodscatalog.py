@@ -153,16 +153,18 @@ class iRODSCatalog(catalog.Catalog):
                 raise
 
         pathlist = [dobj.path for dobj in list(coll.data_objects)]
-        for _ in self.download_files(pathlist, destdir):
-            pass
+        for y in self.download_files(pathlist, destdir):
+            yield y
 
         for subcoll in coll.subcollections:
-            self._download_coll(subcoll, destdir)
+            for y in self._download_coll(subcoll, destdir):
+                yield y
 
     def download_directories(self, pathlist, destdir):
         for p in pathlist:
             coll = self.cm.get(p)
-            self._download_coll(coll, destdir)
+            for y in self._download_coll(coll, destdir):
+                yield y
 
     def upload_files(self, files, path):
         for y in self._upload_files(files, path):

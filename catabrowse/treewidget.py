@@ -1,5 +1,6 @@
 from . import catalog
 from . progress_dialog import progress_from_generator as progress
+from . progress_dialog import unbounded_progress_from_generator as uprogress
 
 import six
 from six import print_
@@ -169,7 +170,10 @@ class TreeWidget(tk.Frame):
             progress(self.master, 'download {} files'.format(len(files)),
                      self.catalog.download_files(files, destdir))
 
-        self.catalog.download_directories(directories, destdir)
+        if directories:
+            uprogress(self.master,
+                      'download {} directories'.format(len(directories)),
+                      self.catalog.download_directories(directories, destdir))
 
     def upload(self):
         path = self.get_selection()[0]
