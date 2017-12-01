@@ -41,3 +41,11 @@ class ProgressDialog:
 
     def finish(self):
         self.toplevel.destroy()
+
+def progress_from_generator(master, message, generator):
+    progress = ProgressDialog(master, message)
+
+    for p, n in generator:
+        progress.set(p, n)
+
+    progress.finish()

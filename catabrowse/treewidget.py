@@ -1,5 +1,5 @@
 from . import catalog
-from . import progress_dialog
+from . progress_dialog import progress_from_generator as progress
 
 import six
 from six import print_
@@ -26,7 +26,8 @@ class TreeWidget(tk.Frame):
         self.catalog = catalog
         self.path = path
 
-        self.tree = ttk.Treeview(self, columns=('owner', 'size', 'modification time'))
+        self.tree = ttk.Treeview(self, columns=('owner', 'size',
+                                                'modification time'))
 
         ysb = ttk.Scrollbar(self, orient='vertical', command=self.tree.yview)
         xsb = ttk.Scrollbar(self, orient='horizontal', command=self.tree.xview)
@@ -35,7 +36,8 @@ class TreeWidget(tk.Frame):
         self.tree.heading('#0', text='path', anchor='w')
         self.tree.heading('owner', text='owner', anchor='w')
         self.tree.heading('size', text='size', anchor='w')
-        self.tree.heading('modification time', text='modification time', anchor='w')
+        self.tree.heading('modification time', text='modification time',
+                          anchor='w')
 
         st = self.catalog.lstat(path)
         values = [st['user'], st['size'], st['mtime']]
@@ -60,6 +62,7 @@ class TreeWidget(tk.Frame):
 
         def _map(e):
             former_sel = self.get_selection()
+
             def selchanged(e):
                 if former_sel != self.get_selection():
                     self.context_menu.unpost()
@@ -67,11 +70,9 @@ class TreeWidget(tk.Frame):
             self.context_menu_mapped = True
             self.tree.bind('<<TreeviewSelect>>', selchanged)
 
-
         def _unmap(e):
             self.context_menu_mapped = False
             self.tree.bind('<<TreeviewSelect>>')
-
 
         self.context_menu_mapped = False
         self.context_menu.bind('<Map>', _map)
@@ -83,7 +84,8 @@ class TreeWidget(tk.Frame):
                                       command=self.download)
         self.context_menu.add_command(label=self.__context_menu_upload,
                                       command=self.upload)
-        self.context_menu.add_command(label=self.__context_menu_upload_directory,
+        self.context_menu.add_command(label=self.
+                                      __context_menu_upload_directory,
                                       command=self.upload_directory)
         self.context_menu.add_command(label=self.__context_menu_delete,
                                       command=self.delete)
@@ -164,10 +166,8 @@ class TreeWidget(tk.Frame):
         files, directories = self._split_files_and_directories(selection)
 
         if files:
-            progress = progress_dialog.ProgressDialog(self.master, 'download {} files'.format(len(files)))
-            for p, n in self.catalog.download_files(files, destdir):
-                progress.set(p, n)
-            progress.finish()
+            progress(self.master, 'download {} files'.format(len(files)),
+                     self.catalog.download_files(files, destdir))
 
         self.catalog.download_directories(directories, destdir)
 
@@ -179,10 +179,8 @@ class TreeWidget(tk.Frame):
 
         print_('uploading', files, 'to', path)
         if files:
-            progress = progress_dialog.ProgressDialog(self.master, 'upload {} files'.format(len(files)))
-            for p, n in self.catalog.upload_files(files, path):
-                progress.set(p, n)
-            progress.finish()
+            progress(self.master, 'upload {} files'.format(len(files)),
+                     self.catalog.upload_files(files, path))
 
         self.process_directory(path, path)
 
@@ -207,16 +205,12 @@ class TreeWidget(tk.Frame):
         parents = {self.tree.parent(f) for f in selection}
 
         if files:
-            progress = progress_dialog.ProgressDialog(self.master, 'delete {} files'.format(len(files)))
-            for p, n in self.catalog.delete_files(files):
-                progress.set(p, n)
-            progress.finish()
+            progress(self.master, 'delete {} files'.format(len(files)),
+                     self.catalog.delete_files(files))
 
         if directories:
-            progress = progress_dialog.ProgressDialog(self.master, 'delete {} directories'.format(len(files)))
-
-            for p, n in self.catalog.delete_directories(directories):
-                progress.set(p, n)
+            progress(self.master, 'delete {} directories'.format(len(files)),
+                     self.catalog.delete_directories(directories))
 
         for parent in parents:
             self.process_directory(parent, parent)
