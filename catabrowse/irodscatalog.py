@@ -197,7 +197,7 @@ class iRODSCatalog(catalog.Catalog):
 
             yield os.path.getsize(f)
 
-    def _upload_dir(self, dir_, path):
+    def _upload_dir(self, dir_, path, remove_existing=None):
         files = []
         subdirs = []
         for name in os.listdir(dir_):
@@ -207,17 +207,21 @@ class iRODSCatalog(catalog.Catalog):
             else:
                 files.append(abspath)
 
-        for y in self._upload_files(files, path):
+        for y in self._upload_files(files, path,
+                                    remove_existing=remove_existing):
             yield y
 
         for abspath, name in subdirs:
+            remove = remove_existing
+
             cpath = self.join(path, name)
             try:
                 coll = self.cm.create(cpath)
+                remove = False
             except exceptions.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
                 pass
 
-            for y in self._upload_dir(abspath, cpath):
+            for y in self._upload_dir(abspath, cpath, remove):
                 yield y
 
     def upload_directories(self, dirs, path):
@@ -225,15 +229,18 @@ class iRODSCatalog(catalog.Catalog):
 
         completed = 0
         for d in dirs:
+            remove = self.remove_files_before_overwrite
+
             name = os.path.basename(d)
             cpath = self.join(path, name)
 
             try:
                 self.cm.create(cpath)
+                remove = False
             except exceptions.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
                 pass
 
-            for s in self._upload_dir(d, cpath):
+            for s in self._upload_dir(d, cpath, remove):
                 completed += s
                 yield completed, size
 
