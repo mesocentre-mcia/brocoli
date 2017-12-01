@@ -37,10 +37,6 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
-    # ignore annoying irodsclient messages
-    logger = logging.getLogger()
-    logger.setLevel(logging.CRITICAL)
-
     cat = None
     if args.catalog == 'os':
         cat = catalog.OSCatalog()

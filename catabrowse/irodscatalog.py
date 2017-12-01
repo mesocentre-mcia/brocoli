@@ -167,8 +167,12 @@ class iRODSCatalog(catalog.Catalog):
                 yield y
 
     def upload_files(self, files, path):
-        for y in self._upload_files(files, path):
-            yield y
+        nfiles, size = local_files_stats(files)
+
+        completed = 0
+        for s in self._upload_files(files, path):
+            completed += s
+            yield completed, size
 
     def _upload_files(self, files, path, remove_existing=None):
         if remove_existing is None:
@@ -178,8 +182,6 @@ class iRODSCatalog(catalog.Catalog):
 
         options = {kw.FORCE_FLAG_KW: '', kw.ALL_KW: ''}
 
-        number = len(files)
-        i = 0
         for f in files:
             basename = os.path.basename(f)
             irods_path = path + basename
@@ -193,8 +195,7 @@ class iRODSCatalog(catalog.Catalog):
 
             self.dom.put(f, path, **options)
 
-            i += 1
-            yield i, number
+            yield os.path.getsize(f)
 
     def _upload_dir(self, dir_, path):
         files = []
@@ -206,8 +207,8 @@ class iRODSCatalog(catalog.Catalog):
             else:
                 files.append(abspath)
 
-        for _ in self.upload_files(files, path):
-            pass
+        for y in self._upload_files(files, path):
+            yield y
 
         for abspath, name in subdirs:
             cpath = self.join(path, name)
@@ -216,9 +217,13 @@ class iRODSCatalog(catalog.Catalog):
             except exceptions.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
                 pass
 
-            self._upload_dir(abspath, cpath)
+            for y in self._upload_dir(abspath, cpath):
+                yield y
 
     def upload_directories(self, dirs, path):
+        nfiles, size = local_tree_stats(dirs)
+
+        completed = 0
         for d in dirs:
             name = os.path.basename(d)
             cpath = self.join(path, name)
@@ -228,11 +233,11 @@ class iRODSCatalog(catalog.Catalog):
             except exceptions.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
                 pass
 
-            self._upload_dir(d, cpath)
+            for s in self._upload_dir(d, cpath):
+                completed += s
+                yield completed, size
 
     def delete_files(self, files):
-        #q = self.session.query().filter(DataObject.owner_name == 'pigay').count(DataObject.id).sum(DataObject.size).all()
-        #print q
         number = len(files)
 
         i = 0

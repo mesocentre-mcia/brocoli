@@ -195,7 +195,9 @@ class TreeWidget(tk.Frame):
             return
 
         print_('recursively uploading', directory, 'to', path)
-        self.catalog.upload_directories((directory, ), path)
+
+        progress(self.master, 'recursively upload {} directory'.format(1),
+                 self.catalog.upload_directories((directory, ), path))
 
         self.process_directory(path, path)
 
