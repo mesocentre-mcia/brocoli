@@ -50,13 +50,16 @@ def local_files_stats(files):
     return len(files), sum(os.path.getsize(f) for f in files)
 
 class iRODSCatalog(catalog.Catalog):
-    def __init__(self, host, port, user, zone, scrambled_password):
+    def __init__(self, host, port, user, zone, scrambled_password,
+                 remove_files_before_overwrite=True):
         self.session = iRODSSession(host=host, port=port, user=user,
                                     password=decode(scrambled_password),
                                     zone=zone)
 
         self.dom = self.session.data_objects
         self.cm = self.session.collections
+
+        self.remove_files_before_overwrite = remove_files_before_overwrite
 
     def splitname(self, path):
         return path.rsplit('/', 1)
@@ -162,6 +165,12 @@ class iRODSCatalog(catalog.Catalog):
             self._download_coll(coll, destdir)
 
     def upload_files(self, files, path):
+        for y in self._upload_files(files, path):
+            yield y
+
+    def _upload_files(self, files, path, remove_existing=None):
+        if remove_existing is None:
+            remove_existing = self.remove_files_before_overwrite
         if not path.endswith('/'):
             path = path + '/'
 
@@ -170,6 +179,16 @@ class iRODSCatalog(catalog.Catalog):
         number = len(files)
         i = 0
         for f in files:
+            basename = os.path.basename(f)
+            irods_path = path + basename
+            print_('put', f, path, irods_path)
+
+            if remove_existing and self.dom.exists(irods_path):
+                # have to remove existing file before writing because force and
+                # all flags don't behave as expected (see
+                # https://github.com/irods/python-irodsclient/issues/100)
+                self.dom.unlink(irods_path, force=True)
+
             self.dom.put(f, path, **options)
 
             i += 1
