@@ -28,19 +28,28 @@ if __name__ == '__main__':
 
     from catabrowse.irodscatalog import make_irods3_catalog
 
+    from catabrowse import config
+
+    # usable catalog types
     cat_types = ['os', 'irods', 'irods3']
 
     parser = argparse.ArgumentParser(description='Browse catalog')
-    parser.add_argument('path', metavar='PATH', help='a path in the catalog')
+    parser.add_argument('path', metavar='PATH', nargs='?', default=None,
+                        help='a path in the catalog')
+    parser.add_argument('--profile', metavar='PROFILE',
+                        default=None, help='a profile in the configuration file')
     parser.add_argument('--catalog', metavar='CAT_TYPE', choices=cat_types,
-                        default='os', help='a catalog type')
+                        default=None, help='a catalog type')
 
     args = parser.parse_args()
 
+    cfg = config.load_config(profile=args.profile)
+
     cat = None
-    if args.catalog == 'os':
+    catalog_type = args.catalog or cfg['catalog_type']
+    if catalog_type == 'os':
         cat = catalog.OSCatalog()
-    elif args.catalog == 'irods' or args.catalog == 'irods3':
+    elif catalog_type in ['irods', 'irods3']:
         cat = make_irods3_catalog(os.path.expanduser('~/.irods/.irodsEnv'))
 
-    application(args.path, cat)
+    application(args.path or cfg['root_path'], cat)

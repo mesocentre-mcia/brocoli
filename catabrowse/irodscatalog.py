@@ -180,7 +180,16 @@ class iRODSCatalog(catalog.Catalog):
         if not path.endswith('/'):
             path = path + '/'
 
-        options = {kw.FORCE_FLAG_KW: '', kw.ALL_KW: ''}
+        options = {kw.FORCE_FLAG_KW: '',
+                   #kw.ALL_KW: '',
+                   kw.FORCE_CHKSUM_KW: '',
+                   kw.REG_CHKSUM_KW: '',
+                   kw.CHKSUM_KW: '',
+                   kw.VERIFY_CHKSUM_KW: '',
+                   kw.ALL_REPL_STATUS_KW: '',
+                   kw.CHKSUM_ALL_KW: '',
+                   kw.UPDATE_REPL_KW: '',
+                   }
 
         for f in files:
             basename = os.path.basename(f)
@@ -191,7 +200,8 @@ class iRODSCatalog(catalog.Catalog):
                 # have to remove existing file before writing because force and
                 # all flags don't behave as expected (see
                 # https://github.com/irods/python-irodsclient/issues/100)
-                self.dom.unlink(irods_path, force=True)
+                #self.dom.unlink(irods_path, force=True)
+                pass
 
             self.dom.put(f, path, **options)
 
