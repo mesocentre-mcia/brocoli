@@ -1,16 +1,37 @@
 import six
 from six import print_
 from six.moves import tkinter as tk
+from six.moves import tkinter_tksimpledialog as tksimpledialog
+from six.moves import tkinter_ttk as ttk
 
 from catabrowse.treewidget import TreeWidget
 from catabrowse import catalog
+from catabrowse import preferences
 
 def application(path, catalog_):
+    def new_connection():
+        dialog = preferences.NewConnectionDialog(root)
+
+        if dialog.result is None:
+            return
+
+        config.save_config(dialog.to_config_dict(), update=True)
+
+    def open_preferences():
+        prefs = preferences.Preferences(root)
+
     root = tk.Tk()
 
     menubar = tk.Menu(root)
 
+    connection_menu = tk.Menu(menubar, tearoff=False)
+
+    connection_menu.add_command(label="New connection", command=new_connection)
+    connection_menu.add_command(label="Preferences", command=open_preferences)
+    menubar.add_cascade(label='Settings', menu=connection_menu)
+
     menubar.add_command(label="Quit!", command=root.quit)
+
     root.config(menu=menubar)
 
     root.rowconfigure(0, weight=1)
@@ -18,7 +39,7 @@ def application(path, catalog_):
 
     app = TreeWidget(root, catalog_, path=path)
 
-    app.mainloop()
+    root.mainloop()
 
 if __name__ == '__main__':
     import argparse
@@ -30,26 +51,25 @@ if __name__ == '__main__':
 
     from catabrowse import config
 
-    # usable catalog types
-    cat_types = ['os', 'irods', 'irods3']
-
     parser = argparse.ArgumentParser(description='Browse catalog')
     parser.add_argument('path', metavar='PATH', nargs='?', default=None,
                         help='a path in the catalog')
-    parser.add_argument('--profile', metavar='PROFILE',
-                        default=None, help='a profile in the configuration file')
-    parser.add_argument('--catalog', metavar='CAT_TYPE', choices=cat_types,
-                        default=None, help='a catalog type')
+    parser.add_argument('--connection', metavar='CONNECTION',
+                        default=None, help='use connection:CONNECTION '
+                        'section in configuration file')
 
     args = parser.parse_args()
 
-    cfg = config.load_config(profile=args.profile)
+    cfg = config.load_config()
+
+    conn = cfg['connection:' + (args.connection or
+                                cfg['SETTINGS']['default_connection'])]
 
     cat = None
-    catalog_type = args.catalog or cfg['catalog_type']
+    catalog_type = conn['catalog_type']
     if catalog_type == 'os':
         cat = catalog.OSCatalog()
-    elif catalog_type in ['irods', 'irods3']:
+    elif catalog_type == 'irods3':
         cat = make_irods3_catalog(os.path.expanduser('~/.irods/.irodsEnv'))
 
-    application(args.path or cfg['root_path'], cat)
+    application(args.path or conn['root_path'], cat)

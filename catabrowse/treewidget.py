@@ -23,7 +23,7 @@ class TreeWidget(tk.Frame):
     def __init__(self, master, catalog, path):
         tk.Frame.__init__(self, master)
 
-        self.masteer = master
+        self.master = master
         self.catalog = catalog
         self.path = path
 
