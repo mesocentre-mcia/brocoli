@@ -8,7 +8,41 @@ from catabrowse.treewidget import TreeWidget
 from catabrowse import catalog
 from catabrowse import preferences
 
-def application(path, catalog_):
+
+class conn_switcher:
+    def __init__(self, cfg, app, conn_name):
+        self.cfg = cfg
+        self.app = app
+        self.conn_name = conn_name
+
+    def switch(self):
+        self.app.set_connection(*self.cfg.connection(self.conn_name))
+
+
+class switcher_submenu:
+    def __init__(self, cfg, connection_menu, app):
+        self.cfg = cfg
+        self.app = app
+        self.menu = connection_menu
+        self.menu_name = 'Switch connection'
+
+        self.menu.add_cascade(label=self.menu_name, menu=None)
+
+    def populate(self):
+        index = self.menu.index(self.menu_name)
+        self.menu.delete(index)
+
+        switch_menu = tk.Menu(self.menu, tearoff=False)
+
+        for c in self.cfg.connection_names():
+            cs = conn_switcher(self.cfg, self.app, c)
+            switch_menu.add_command(label=c, command=cs.switch)
+
+        self.menu.insert_cascade(index, label=self.menu_name,
+                                 menu=switch_menu)
+
+
+def application(cfg, path):
     def new_connection():
         dialog = preferences.NewConnectionDialog(root)
 
@@ -16,17 +50,31 @@ def application(path, catalog_):
             return
 
         config.save_config(dialog.to_config_dict(), update=True)
+        ss.cfg = config.load_config()
+        ss.populate()
 
     def open_preferences():
         prefs = preferences.Preferences(root)
+        if prefs.changed:
+            ss.cfg = prefs.connection_manager.cfg
+            ss.populate()
 
     root = tk.Tk()
+
+    cat, root_path = cfg.connection(args.connection)
+
+    app = TreeWidget(root, cat, path=path or root_path)
 
     menubar = tk.Menu(root)
 
     connection_menu = tk.Menu(menubar, tearoff=False)
 
     connection_menu.add_command(label="New connection", command=new_connection)
+    switch_menu = None
+
+    ss = switcher_submenu(cfg, connection_menu, app)
+    ss.populate()
+
     connection_menu.add_command(label="Preferences", command=open_preferences)
     menubar.add_cascade(label='Settings', menu=connection_menu)
 
@@ -36,8 +84,6 @@ def application(path, catalog_):
 
     root.rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
-
-    app = TreeWidget(root, catalog_, path=path)
 
     root.mainloop()
 
@@ -62,14 +108,4 @@ if __name__ == '__main__':
 
     cfg = config.load_config()
 
-    conn = cfg['connection:' + (args.connection or
-                                cfg['SETTINGS']['default_connection'])]
-
-    cat = None
-    catalog_type = conn['catalog_type']
-    if catalog_type == 'os':
-        cat = catalog.OSCatalog()
-    elif catalog_type == 'irods3':
-        cat = make_irods3_catalog(os.path.expanduser('~/.irods/.irodsEnv'))
-
-    application(args.path or conn['root_path'], cat)
+    application(cfg, args.path)

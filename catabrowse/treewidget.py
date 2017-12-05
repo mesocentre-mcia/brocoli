@@ -24,8 +24,7 @@ class TreeWidget(tk.Frame):
         tk.Frame.__init__(self, master)
 
         self.master = master
-        self.catalog = catalog
-        self.path = path
+
 
         self.tree = ttk.Treeview(self, columns=('owner', 'size',
                                                 'modification time'))
@@ -40,12 +39,6 @@ class TreeWidget(tk.Frame):
         self.tree.heading('modification time', text='modification time',
                           anchor='w')
 
-        st = self.catalog.lstat(path)
-        values = [st['user'], st['size'], st['mtime']]
-        root_node = self.tree.insert('', 'end', iid=path, text=path,
-                                     open=True, values=values)
-        self.process_directory(root_node, path)
-
         self.tree.bind('<<TreeviewOpen>>', self.open_cb)
 
         self.tree.grid(row=0, column=0, sticky='nsew')
@@ -57,6 +50,23 @@ class TreeWidget(tk.Frame):
         self.grid(sticky='nsew')
 
         self._set_context_menu()
+
+        self.set_connection(catalog, path)
+
+    def set_connection(self, catalog, path):
+        self.catalog = catalog
+        self.path = path
+
+        for child in self.tree.get_children():
+            self.tree.delete(child)
+
+        st = self.catalog.lstat(self.path)
+        values = [st['user'], st['size'], st['mtime']]
+        root_node = self.tree.insert('', 'end', iid=path, text=path,
+                                     open=True, values=values)
+
+
+        self.process_directory(root_node, path)
 
     def _set_context_menu(self):
         self.context_menu = tk.Menu(self.tree, tearoff=False)

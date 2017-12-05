@@ -225,6 +225,9 @@ class Preferences(tksimpledialog.Dialog):
         self.connection_manager = ConnectionManager(master, None)
         self.connection_manager.grid(row=0)
 
+        self.changed = False
+
     def apply(self):
         if self.connection_manager.cfg != self.connection_manager.old_cfg:
             config.save_config(self.connection_manager.cfg, update=False)
+            self.changed = True

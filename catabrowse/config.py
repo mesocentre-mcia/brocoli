@@ -1,3 +1,5 @@
+from . import catalog
+from . import irodscatalog
 
 from six.moves import configparser
 
@@ -8,6 +10,29 @@ import tempfile
 import collections
 
 default_config_filename = os.path.expanduser('~/.catabrowse.ini')
+
+
+class Config(collections.OrderedDict):
+
+    def connection(self, name=None):
+        name = name or self['SETTINGS']['default_connection']
+
+        conn = self['connection:' + name]
+
+        cat = None
+        catalog_type = conn['catalog_type']
+        if catalog_type == 'os':
+            cat = catalog.OSCatalog()
+        elif catalog_type == 'irods3':
+            envfile = os.path.join(os.path.expanduser('~'), '.irods',
+                                   '.irodsEnv')
+            cat = irodscatalog.make_irods3_catalog(envfile)
+
+        return cat, conn['root_path']
+
+    def connection_names(self):
+        return [k.split(':', 1)[1] for k in self if k.startswith('connection:')]
+
 
 def load_config(filename=None):
     filename = filename or default_config_filename
@@ -25,7 +50,7 @@ def load_config(filename=None):
             'root_path': tempfile.mkdtemp(),
         }
 
-    ret = {}
+    ret = Config()
 
     for section in config.sections():
         ret[section] = collections.OrderedDict(config.items(section))
