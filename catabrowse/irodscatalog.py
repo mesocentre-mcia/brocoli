@@ -2,6 +2,7 @@ from . import catalog
 
 import re
 import os
+import hashlib
 
 from six import print_
 
@@ -13,6 +14,7 @@ from irods.manager.collection_manager import CollectionManager
 from irods.models import DataObject, Collection
 import irods.keywords as kw
 import irods.exception as exceptions
+
 
 def parse_env3(path):
     "parse iRODS v3 iCommands environment files"
@@ -29,6 +31,7 @@ def parse_env3(path):
 
     return ret
 
+
 def local_tree_stats(dirs):
     total_nfiles = 0
     total_size = 0
@@ -39,15 +42,18 @@ def local_tree_stats(dirs):
 
         for root, dirs, files in os.walk(d):
             nfiles += len(files)
-            size += sum(os.path.getsize(os.path.join(root, name)) for name in files)
+            size += sum(os.path.getsize(os.path.join(root, name))
+                        for name in files)
 
         total_nfiles += nfiles
         total_size += size
 
     return total_nfiles, total_size
 
+
 def local_files_stats(files):
     return len(files), sum(os.path.getsize(f) for f in files)
+
 
 class iRODSCatalog(catalog.Catalog):
     def __init__(self, host, port, user, zone, scrambled_password,
@@ -117,7 +123,8 @@ class iRODSCatalog(catalog.Catalog):
         q = self.session.query(DataObject.name).filter(Collection.name == path)
         files = [r[DataObject.name] for r in q.all()]
 
-        q = self.session.query(Collection.name).filter(Collection.parent_name == path)
+        q = self.session.query(Collection.name) \
+            .filter(Collection.parent_name == path)
         colls = [self.basename(c[Collection.name]) for c in q.all()]
         return colls + files
 
@@ -175,35 +182,34 @@ class iRODSCatalog(catalog.Catalog):
             yield completed, size
 
     def _upload_files(self, files, path, remove_existing=None):
+        def local_file_md5(filename):
+            m = hashlib.md5()
+            with open(filename, 'rb') as f:
+                m.update(f.read())
+
+            print_(filename, m.hexdigest())
+
+            return m.hexdigest()
+
         if remove_existing is None:
             remove_existing = self.remove_files_before_overwrite
         if not path.endswith('/'):
             path = path + '/'
 
-        options = {kw.FORCE_FLAG_KW: '',
-                   #kw.ALL_KW: '',
-                   kw.FORCE_CHKSUM_KW: '',
-                   kw.REG_CHKSUM_KW: '',
-                   kw.CHKSUM_KW: '',
-                   kw.VERIFY_CHKSUM_KW: '',
-                   kw.ALL_REPL_STATUS_KW: '',
-                   kw.CHKSUM_ALL_KW: '',
-                   kw.UPDATE_REPL_KW: '',
-                   }
+        options = {
+            kw.VERIFY_CHKSUM_KW: '',
+            kw.ALL_KW: '',
+            kw.UPDATE_REPL_KW: '',
+        }
 
         for f in files:
             basename = os.path.basename(f)
             irods_path = path + basename
             print_('put', f, path, irods_path)
 
-            if remove_existing and self.dom.exists(irods_path):
-                # have to remove existing file before writing because force and
-                # all flags don't behave as expected (see
-                # https://github.com/irods/python-irodsclient/issues/100)
-                #self.dom.unlink(irods_path, force=True)
-                pass
+            options[kw.VERIFY_CHKSUM_KW] = local_file_md5(f)
 
-            self.dom.put(f, path, **options)
+            self.dom.put(f, irods_path, **options)
 
             yield os.path.getsize(f)
 
