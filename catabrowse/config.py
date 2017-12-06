@@ -11,6 +11,13 @@ import collections
 
 default_config_filename = os.path.expanduser('~/.catabrowse.ini')
 
+catalog_dict = {
+    'os': catalog.OSCatalog,
+    'irods3': irodscatalog.iRODSCatalog,
+}
+
+catalog_types = list(catalog_dict.keys())
+
 
 class Config(collections.OrderedDict):
 
@@ -24,9 +31,7 @@ class Config(collections.OrderedDict):
         if catalog_type == 'os':
             cat = catalog.OSCatalog()
         elif catalog_type == 'irods3':
-            envfile = os.path.join(os.path.expanduser('~'), '.irods',
-                                   '.irodsEnv')
-            cat = irodscatalog.make_irods3_catalog(envfile)
+            cat = irodscatalog.irods3_catalog_from_config(conn)
 
         return cat, conn['root_path']
 
@@ -37,13 +42,13 @@ class Config(collections.OrderedDict):
 def load_config(filename=None):
     filename = filename or default_config_filename
 
-    config = configparser.SafeConfigParser()
+    config = configparser.RawConfigParser()
 
     if os.path.exists(filename):
         config.read(filename)
     else:
         config['SETTINGS'] = {
-            'default_connection': 'connection:default',
+            'default_connection': 'default',
         }
         config['connection:default'] = {
             'catalog_type': 'os',
@@ -60,7 +65,7 @@ def load_config(filename=None):
 def save_config(config_dict, filename=None, update=False):
     filename = filename or default_config_filename
 
-    config = configparser.SafeConfigParser()
+    config = configparser.RawConfigParser()
 
     if update and os.path.exists(filename):
         config.read(filename)

@@ -4,6 +4,7 @@ from datetime import datetime
 
 from six import print_
 
+
 class Catalog(object):
     def lstat(self, path):
         raise NotImplementedError
@@ -36,6 +37,10 @@ class Catalog(object):
         raise NotImplementedError
 
     def mkdir(self, path):
+        raise NotImplementedError
+
+    @classmethod
+    def config_fields(cls):
         raise NotImplementedError
 
 class OSCatalog(Catalog):
@@ -119,3 +124,8 @@ class OSCatalog(Catalog):
 
     def mkdir(self, path):
         os.mkdir(path)
+
+    @classmethod
+    def config_fields(cls):
+        return {}
+

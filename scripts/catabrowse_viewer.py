@@ -93,8 +93,6 @@ if __name__ == '__main__':
     import sys
     import os
 
-    from catabrowse.irodscatalog import make_irods3_catalog
-
     from catabrowse import config
 
     parser = argparse.ArgumentParser(description='Browse catalog')

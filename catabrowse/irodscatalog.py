@@ -1,14 +1,16 @@
 from . import catalog
+from . import form
 
 import re
 import os
 import hashlib
+import collections
 
 from six import print_
 
 import irods
 from irods.session import iRODSSession
-from irods.password_obfuscation import decode
+from irods import password_obfuscation
 from irods.manager.data_object_manager import DataObjectManager
 from irods.manager.collection_manager import CollectionManager
 from irods.models import DataObject, Collection
@@ -56,16 +58,13 @@ def local_files_stats(files):
 
 
 class iRODSCatalog(catalog.Catalog):
-    def __init__(self, host, port, user, zone, scrambled_password,
-                 remove_files_before_overwrite=True):
+    def __init__(self, host, port, user, zone, scrambled_password):
         self.session = iRODSSession(host=host, port=port, user=user,
-                                    password=decode(scrambled_password),
+                                    password=password_obfuscation.decode(scrambled_password),
                                     zone=zone)
 
         self.dom = self.session.data_objects
         self.cm = self.session.collections
-
-        self.remove_files_before_overwrite = remove_files_before_overwrite
 
     def splitname(self, path):
         return path.rsplit('/', 1)
@@ -181,7 +180,7 @@ class iRODSCatalog(catalog.Catalog):
             completed += s
             yield completed, size
 
-    def _upload_files(self, files, path, remove_existing=None):
+    def _upload_files(self, files, path):
         def local_file_md5(filename):
             m = hashlib.md5()
             with open(filename, 'rb') as f:
@@ -191,8 +190,6 @@ class iRODSCatalog(catalog.Catalog):
 
             return m.hexdigest()
 
-        if remove_existing is None:
-            remove_existing = self.remove_files_before_overwrite
         if not path.endswith('/'):
             path = path + '/'
 
@@ -213,7 +210,7 @@ class iRODSCatalog(catalog.Catalog):
 
             yield os.path.getsize(f)
 
-    def _upload_dir(self, dir_, path, remove_existing=None):
+    def _upload_dir(self, dir_, path):
         files = []
         subdirs = []
         for name in os.listdir(dir_):
@@ -223,13 +220,10 @@ class iRODSCatalog(catalog.Catalog):
             else:
                 files.append(abspath)
 
-        for y in self._upload_files(files, path,
-                                    remove_existing=remove_existing):
+        for y in self._upload_files(files, path):
             yield y
 
         for abspath, name in subdirs:
-            remove = remove_existing
-
             cpath = self.join(path, name)
             try:
                 coll = self.cm.create(cpath)
@@ -237,7 +231,7 @@ class iRODSCatalog(catalog.Catalog):
             except exceptions.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
                 pass
 
-            for y in self._upload_dir(abspath, cpath, remove):
+            for y in self._upload_dir(abspath, cpath):
                 yield y
 
     def upload_directories(self, dirs, path):
@@ -245,18 +239,15 @@ class iRODSCatalog(catalog.Catalog):
 
         completed = 0
         for d in dirs:
-            remove = self.remove_files_before_overwrite
-
             name = os.path.basename(d)
             cpath = self.join(path, name)
 
             try:
                 self.cm.create(cpath)
-                remove = False
             except exceptions.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
                 pass
 
-            for s in self._upload_dir(d, cpath, remove):
+            for s in self._upload_dir(d, cpath):
                 completed += s
                 yield completed, size
 
@@ -281,8 +272,22 @@ class iRODSCatalog(catalog.Catalog):
     def mkdir(self, path):
         self.cm.create(path)
 
+    @classmethod
+    def config_fields(cls):
 
-def make_irods3_catalog(envfile):
+        return collections.OrderedDict(
+            use_irods_env=form.BooleanField('Use irods environment file'),
+            host=form.HostnameField('iRODS host:'),
+            port=form.IntegerField('iRODS port:', '1247'),
+            zone=form.TextField('iRODS zone:'),
+            user_name=form.TextField('iRODS user name:'),
+            password=form.PasswordField('iRODS password:',
+                                        encode=password_obfuscation.encode,
+                                        decode=password_obfuscation.decode),
+        )
+
+
+def irods3_catalog_from_envfile(envfile):
     env3 = parse_env3(envfile)
 
     host = env3['irodsHost']
@@ -294,4 +299,25 @@ def make_irods3_catalog(envfile):
     with open(pwdfile, 'r') as f:
         scrambled_password = f.read().strip()
 
-        return iRODSCatalog(host, port, user, zone, scrambled_password)
+    return iRODSCatalog(host, port, user, zone, scrambled_password)
+
+def irods3_catalog_from_config(cfg):
+    use_env = False
+    if cfg['use_irods_env'].lower() in ['1', 'yes', 'on', 'true']:
+        use_env = True
+    elif cfg['use_irods_env'].lower() in ['0', 'no', 'off', 'false']:
+        use_env = False
+    else:
+        raise ValueError('invalid irods_use_env value: {}'.format(cfg['use_irods_env']))
+
+    if use_env:
+        envfile = os.path.join(os.path.expanduser('~'), '.irods', '.irodsEnv')
+        return irods3_catalog_from_envfile(envfile)
+
+    host = cfg['host']
+    port = cfg['port']
+    user = cfg['user_name']
+    zone = cfg['zone']
+    scrambled_password = cfg['password']
+
+    return iRODSCatalog(host, port, user, zone, scrambled_password)

@@ -8,18 +8,18 @@ import copy
 import collections
 
 from . import config
-
-catalog_types = ['os', 'irods3']
-
+from . import form
 
 class NewConnectionDialog(tksimpledialog.Dialog):
     def __init__(self, master, connection_name='new-connection',
-                 catalog_type=catalog_types[0],
-                 root_path=tempfile.gettempdir(), isdefault=False, **kwargs):
+                 catalog_type=config.catalog_types[0],
+                 root_path=tempfile.gettempdir(), isdefault=False,
+                 catalog_config=None, **kwargs):
         self.connection_name = connection_name
         self.catalog_type = catalog_type
         self.root_path = root_path
         self.isdefault = isdefault
+        self.catalog_config = catalog_config
 
         super(NewConnectionDialog, self).__init__(master, **kwargs)
 
@@ -32,7 +32,7 @@ class NewConnectionDialog(tksimpledialog.Dialog):
         self.name.grid(row=0, column=1, sticky='ew')
         self.name.insert(0, self.connection_name)
 
-        self.catalog_cbox = ttk.Combobox(master, values=catalog_types)
+        self.catalog_cbox = ttk.Combobox(master, values=config.catalog_types)
         self.catalog_cbox.grid(row=1, column=1, sticky='ew')
         self.catalog_cbox.set(self.catalog_type)
 
@@ -47,6 +47,12 @@ class NewConnectionDialog(tksimpledialog.Dialog):
                                           variable = self.isdefault_var)
         self.set_default.grid(row=3, column=1)
 
+        self.catalog_config_frame = tk.Frame(master)
+        self.catalog_config_frame.grid(row=4, sticky='nsew')
+
+        self.catalog_type_changed(catalog_config=self.catalog_config)
+        self.catalog_cbox.bind('<<ComboboxSelected>>', self.catalog_type_changed)
+
         self.result = None
 
     def apply(self):
@@ -56,6 +62,12 @@ class NewConnectionDialog(tksimpledialog.Dialog):
             'root_path': self.root_path_entry.get(),
             'set_default': self.isdefault_var.get() != 0,
         })
+
+        config = collections.OrderedDict()
+        for k, ff in self.config_fields.items():
+            config[k] = ff.to_string()
+
+        self.result.update(config)
 
     def to_config_dict(self):
         config = collections.OrderedDict()
@@ -74,6 +86,21 @@ class NewConnectionDialog(tksimpledialog.Dialog):
 
         return config
 
+    def catalog_type_changed(self, event=None, catalog_config=None):
+        catalog_type = self.catalog_cbox.get()
+        self.config_fields = config.catalog_dict[catalog_type].config_fields()
+
+        if catalog_config is not None:
+            for k, ff in self.config_fields.items():
+                if k in catalog_config:
+                    ff.from_string(catalog_config[k])
+
+        master = self.catalog_config_frame.master
+        self.catalog_config_frame.grid_remove()
+        self.catalog_config_frame = form.FormFrame(master)
+        self.catalog_config_frame.grid_fields(self.config_fields.values())
+        self.catalog_config_frame.grid(row=4, columnspan=2, sticky='nsew')
+
 
 class ConnectionManager(tk.Frame):
     def __init__(self, master, config_filename):
@@ -85,9 +112,8 @@ class ConnectionManager(tk.Frame):
         self.cfg = config.load_config(self.config_filename)
         self.old_cfg = copy.deepcopy(self.cfg)
 
-        self.tree = ttk.Treeview(self, columns=('catalog type', 'path',
-                                                'default connection'),
-                                 selectmode='browse')
+        columns = ('catalog type', 'path', 'default connection')
+        self.tree = ttk.Treeview(self, columns=columns,  selectmode='browse')
 
         ysb = ttk.Scrollbar(self, orient='vertical', command=self.tree.yview)
         xsb = ttk.Scrollbar(self, orient='horizontal', command=self.tree.xview)
@@ -184,8 +210,8 @@ class ConnectionManager(tk.Frame):
             isdefault = 1
         print_(name, catalog_type, root_path, isdefault)
 
-
-        n = NewConnectionDialog(self, name, catalog_type, root_path, isdefault)
+        n = NewConnectionDialog(self, name, catalog_type, root_path, isdefault,
+                                catalog_config=self.cfg['connection:' + name])
         new = n.result
         if new is None:
             return
