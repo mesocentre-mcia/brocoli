@@ -17,6 +17,13 @@ from irods.models import DataObject, Collection
 import irods.keywords as kw
 import irods.exception as exceptions
 
+_getuid = None
+if hasattr(os, 'getuid'):
+    _getuid = os.getuid
+else:
+    # generate a fake uid on systems that lacks os.getuid()
+    _getuid = lambda: int('0x' + hashlib.md5(os.getlogin().encode()).hexdigest(), 16) % 10000
+
 
 def parse_env3(path):
     "parse iRODS v3 iCommands environment files"
@@ -58,9 +65,17 @@ def local_files_stats(files):
 
 
 class iRODSCatalog(catalog.Catalog):
+    @classmethod
+    def __encode(cls, s):
+        return password_obfuscation.encode(s, _getuid())
+
+    @classmethod
+    def __decode(cls, s):
+        return password_obfuscation.decode(s, _getuid())
+
     def __init__(self, host, port, user, zone, scrambled_password):
         self.session = iRODSSession(host=host, port=port, user=user,
-                                    password=password_obfuscation.decode(scrambled_password),
+                                    password=iRODSCatalog.__decode(scrambled_password),
                                     zone=zone)
 
         self.dom = self.session.data_objects
