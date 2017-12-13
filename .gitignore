@@ -2,3 +2,6 @@
 *~
 __pycache__
 catabrowse.geany
+build/
+*.egg-info/
+dist/
