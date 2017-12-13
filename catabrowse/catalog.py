@@ -65,7 +65,7 @@ class OSCatalog(Catalog):
         return os.path.join(*args)
 
     def download_files(self, pathlist, destdir):
-        number = len(files)
+        number = len(pathlist)
         i = 0
         for path in pathlist:
             shutil.copy2(path, destdir)
