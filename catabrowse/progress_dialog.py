@@ -19,7 +19,7 @@ class UnboundedProgressDialog:
 
     def step(self, speed=1):
         self.progress.step(speed)
-        self.toplevel.update_idletasks()
+        self.toplevel.update()
 
     def finish(self):
         self.toplevel.destroy()
@@ -51,7 +51,7 @@ class ProgressDialog:
 
         self.count.set(value)
         self.label.config(text=self.opname + ' progress: {}%'.format(value))
-        self.toplevel.update_idletasks()
+        self.toplevel.update()
 
     def finish(self):
         self.toplevel.destroy()
