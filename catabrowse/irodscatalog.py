@@ -275,16 +275,16 @@ class iRODSCatalog(catalog.Catalog):
     @classmethod
     def config_fields(cls):
 
-        return collections.OrderedDict(
-            use_irods_env=form.BooleanField('Use irods environment file'),
-            host=form.HostnameField('iRODS host:'),
-            port=form.IntegerField('iRODS port:', '1247'),
-            zone=form.TextField('iRODS zone:'),
-            user_name=form.TextField('iRODS user name:'),
-            password=form.PasswordField('iRODS password:',
-                                        encode=password_obfuscation.encode,
-                                        decode=password_obfuscation.decode),
-        )
+        return collections.OrderedDict([
+            ('use_irods_env', form.BooleanField('Use irods environment file')),
+            ('host', form.HostnameField('iRODS host:')),
+            ('port', form.IntegerField('iRODS port:', '1247')),
+            ('zone', form.TextField('iRODS zone:')),
+            ('user_name', form.TextField('iRODS user name:')),
+            ('password', form.PasswordField('iRODS password:',
+                                            encode=cls.__encode,
+                                            decode=cls.__decode)),
+        ])
 
 
 def irods3_catalog_from_envfile(envfile):

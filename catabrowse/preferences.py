@@ -56,12 +56,12 @@ class NewConnectionDialog(tksimpledialog.Dialog):
         self.result = None
 
     def apply(self):
-        self.result = collections.OrderedDict({
-            'name': self.name.get(),
-            'catalog_type': self.catalog_cbox.get(),
-            'root_path': self.root_path_entry.get(),
-            'set_default': self.isdefault_var.get() != 0,
-        })
+        self.result = collections.OrderedDict([
+            ('name', self.name.get()),
+            ('catalog_type', self.catalog_cbox.get()),
+            ('root_path', self.root_path_entry.get()),
+            ('set_default', self.isdefault_var.get() != 0),
+        ])
 
         config = collections.OrderedDict()
         for k, ff in self.config_fields.items():
