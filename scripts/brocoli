@@ -1,12 +1,14 @@
+#!/usr/bin/env python3
+
 import six
 from six import print_
 from six.moves import tkinter as tk
 from six.moves import tkinter_tksimpledialog as tksimpledialog
 from six.moves import tkinter_ttk as ttk
 
-from catabrowse.treewidget import TreeWidget
-from catabrowse import catalog
-from catabrowse import preferences
+from brocoli.treewidget import TreeWidget
+from brocoli import catalog
+from brocoli import preferences
 
 
 class conn_switcher:
@@ -93,13 +95,13 @@ if __name__ == '__main__':
     import sys
     import os
 
-    from catabrowse import config
+    from brocoli import config
 
     parser = argparse.ArgumentParser(description='Browse catalog')
     parser.add_argument('path', metavar='PATH', nargs='?', default=None,
                         help='a path in the catalog')
     parser.add_argument('--connection', metavar='CONNECTION',
-                        default=None, help='use connection:CONNECTION '
+                        default=None, help='use [connection:CONNECTION] '
                         'section in configuration file')
 
     args = parser.parse_args()

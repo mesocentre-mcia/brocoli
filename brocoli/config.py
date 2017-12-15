@@ -9,7 +9,7 @@ import stat
 import tempfile
 import collections
 
-default_config_filename = os.path.expanduser('~/.catabrowse.ini')
+default_config_filename = os.path.expanduser('~/.brocoli.ini')
 
 catalog_dict = {
     'os': catalog.OSCatalog,

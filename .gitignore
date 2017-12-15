@@ -1,7 +1,7 @@
 *.pyc
 *~
 __pycache__
-catabrowse.geany
+*.geany
 build/
 *.egg-info/
 dist/
