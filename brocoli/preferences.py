@@ -234,7 +234,7 @@ class ConnectionManager(tk.Frame):
 
         self.cfg['connection:' + new_name] = new
 
-        self.tree.selection_set([])
+        self.tree.selection_set('')
         self.insert_connections()
 
     def selchanged(self, event):
