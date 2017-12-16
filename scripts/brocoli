@@ -6,6 +6,12 @@ from six.moves import tkinter as tk
 from six.moves import tkinter_tksimpledialog as tksimpledialog
 from six.moves import tkinter_ttk as ttk
 
+import argparse
+import logging
+import sys
+import os
+
+from brocoli import config
 from brocoli.treewidget import TreeWidget
 from brocoli import catalog
 from brocoli import preferences
@@ -44,7 +50,7 @@ class switcher_submenu:
                                  menu=switch_menu)
 
 
-def application(cfg, path):
+def application(cfg, connection_name, path):
     def new_connection():
         dialog = preferences.NewConnectionDialog(root)
 
@@ -63,7 +69,7 @@ def application(cfg, path):
 
     root = tk.Tk()
 
-    cat, root_path = cfg.connection(args.connection)
+    cat, root_path = cfg.connection(connection_name)
 
     app = TreeWidget(root, cat, path=path or root_path)
 
@@ -89,14 +95,8 @@ def application(cfg, path):
 
     root.mainloop()
 
-if __name__ == '__main__':
-    import argparse
-    import logging
-    import sys
-    import os
 
-    from brocoli import config
-
+def main():
     parser = argparse.ArgumentParser(description='Browse catalog')
     parser.add_argument('path', metavar='PATH', nargs='?', default=None,
                         help='a path in the catalog')
@@ -108,4 +108,7 @@ if __name__ == '__main__':
 
     cfg = config.load_config()
 
-    application(cfg, args.path)
+    application(cfg, args.connection, args.path)
+
+if __name__ == '__main__':
+    main()
