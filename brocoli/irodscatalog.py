@@ -290,15 +290,19 @@ class iRODSCatalog(catalog.Catalog):
     @classmethod
     def config_fields(cls):
 
+        tags = ['inline_config']
+
         return collections.OrderedDict([
-            ('use_irods_env', form.BooleanField('Use irods environment file')),
-            ('host', form.HostnameField('iRODS host:')),
-            ('port', form.IntegerField('iRODS port:', '1247')),
-            ('zone', form.TextField('iRODS zone:')),
-            ('user_name', form.TextField('iRODS user name:')),
+            ('use_irods_env', form.BooleanField('Use irods environment file',
+                                                disables_tags=tags)),
+            ('host', form.HostnameField('iRODS host:', tags=tags)),
+            ('port', form.IntegerField('iRODS port:', '1247', tags=tags)),
+            ('zone', form.TextField('iRODS zone:', tags=tags)),
+            ('user_name', form.TextField('iRODS user name:', tags=tags)),
             ('password', form.PasswordField('iRODS password:',
                                             encode=cls.__encode,
-                                            decode=cls.__decode)),
+                                            decode=cls.__decode,
+                                            tags=tags)),
         ])
 
 
