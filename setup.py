@@ -27,7 +27,14 @@ setup(name='brocoli',
         "console_scripts": ['brocoli = brocoli.brocoli:main']
         },
       python_requires='>=2.7',
-      install_requires=[
+      keywords=['irods', 'tkinter'],
+      classifiers=[
+                   'Development Status :: 3 - Alpha',
+                   'Programming Language :: Python :: 2.7',
+                   'Programming Language :: Python :: 3.5',
+                   'Programming Language :: Python :: 3.6',
+                   'Operating System :: POSIX :: Linux',
+],      install_requires=[
       'six>=1.10.0',
       'python-irodsclient>=0.6.0',
       ]
