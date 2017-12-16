@@ -201,7 +201,7 @@ class iRODSCatalog(catalog.Catalog):
             with open(filename, 'rb') as f:
                 m.update(f.read())
 
-            print_(filename, m.hexdigest())
+            #print_(filename, m.hexdigest())
 
             return m.hexdigest()
 

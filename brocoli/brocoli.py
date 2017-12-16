@@ -11,10 +11,12 @@ import logging
 import sys
 import os
 
-from brocoli import config
-from brocoli.treewidget import TreeWidget
-from brocoli import catalog
-from brocoli import preferences
+from . import config
+from . treewidget import TreeWidget
+from . import catalog
+from . import preferences
+
+__version__ = '0.1.0'
 
 
 class conn_switcher:
