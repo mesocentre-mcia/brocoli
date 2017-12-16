@@ -17,7 +17,7 @@ with open("README.rst", "rb") as f:
     long_descr = f.read().decode("utf-8")
 
 setup(name='brocoli',
-      version='0.1.0',
+      version=version,
       description='Browse Collections for iRODS',
       long_description=long_descr,
       author='Pierre Gay',
@@ -34,7 +34,8 @@ setup(name='brocoli',
                    'Programming Language :: Python :: 3.5',
                    'Programming Language :: Python :: 3.6',
                    'Operating System :: POSIX :: Linux',
-],      install_requires=[
+      ],
+      install_requires=[
       'six>=1.10.0',
       'python-irodsclient>=0.6.0',
       ]
