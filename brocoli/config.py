@@ -47,13 +47,11 @@ def load_config(filename=None):
     if os.path.exists(filename):
         config.read(filename)
     else:
-        config['SETTINGS'] = {
-            'default_connection': 'default',
-        }
-        config['connection:default'] = {
-            'catalog_type': 'os',
-            'root_path': tempfile.mkdtemp(),
-        }
+        config.add_section('SETTINGS')
+        config.set('SETTINGS', 'default_connection', 'default')
+        config.add_section('connection:default')
+        config.set('connection:default', 'catalog_type', 'os')
+        config.set('connection:default', 'root_path', tempfile.gettempdir())
 
     ret = Config()
 
