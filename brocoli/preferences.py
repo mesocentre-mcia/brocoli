@@ -10,7 +10,7 @@ import collections
 from . import config
 from . import form
 
-class NewConnectionDialog(tksimpledialog.Dialog):
+class NewConnectionDialog(tksimpledialog.Dialog, object):
     def __init__(self, master, connection_name='new-connection',
                  catalog_type=config.catalog_types[0],
                  root_path=tempfile.gettempdir(), isdefault=False,
