@@ -13,7 +13,7 @@ Pre-requisites
 For now, Brocoli runs on Linux platforms. There may be Microsoft Windows support
 in a not-so-far future.
 
-Brocoli needs a Ptyhon installation with Tkinter. Python 2.7+ and 3.5+ are
+Brocoli needs a Python installation with Tkinter. Python 2.7+ and 3.5+ are
 expected to work.
 
 Dependencies
