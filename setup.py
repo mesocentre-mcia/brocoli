@@ -22,6 +22,7 @@ setup(name='brocoli',
       long_description=long_descr,
       author='Pierre Gay',
       author_email='pierre.gay@u-bordeaux.fr',
+      url='https://github.com/mesocentre-mcia/brocoli',
       packages=find_packages('.', exclude=['*.tests']),
       entry_points = {
         "console_scripts": ['brocoli = brocoli.brocoli:main']
