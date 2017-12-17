@@ -32,8 +32,8 @@ Not available yet...
 Installing from source
 ^^^^^^^^^^^^^^^^^^^^^^
 
-# Download Brocoli
-# from distribution directory, run ``python setup.py install [--user]]``
+#) Download Brocoli from https://github.com/mesocentre-mcia/brocoli
+#) from distribution directory, run ``python setup.py install [--user]]``
 
 Using Brocoli
 -------------
