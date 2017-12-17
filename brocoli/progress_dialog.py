@@ -1,8 +1,15 @@
+"""
+Progression dialog classes
+"""
 
 from six.moves import tkinter as tk
 from six.moves import tkinter_ttk as ttk
 
 class UnboundedProgressDialog:
+    """
+    Displays a progression dialog without information on the completion of the
+    task but with simple feeling of something evolving
+    """
     def __init__(self, parent, opname, **kwargs):
         self.toplevel = tk.Toplevel(parent, **kwargs)
         self.toplevel.transient(parent)
@@ -25,6 +32,9 @@ class UnboundedProgressDialog:
         self.toplevel.destroy()
 
 class ProgressDialog:
+    """
+    Displays a dialog with a completion percentage
+    """
     def __init__(self, parent, opname, **kwargs):
         self.maximum = 100
         self.toplevel = tk.Toplevel(parent, **kwargs)
@@ -57,6 +67,10 @@ class ProgressDialog:
         self.toplevel.destroy()
 
 def progress_from_generator(master, message, generator):
+    """
+    Builds a ProgressDialog eveolving from a generator that yields pairs of
+    values in the form (current, total)
+    """
     progress = ProgressDialog(master, message)
 
     for p, n in generator:
@@ -65,6 +79,10 @@ def progress_from_generator(master, message, generator):
     progress.finish()
 
 def unbounded_progress_from_generator(master, message, generator):
+    """
+    Builds a ProgressDialog eveolving from a generator yields (no matter what
+    the generator yields)
+    """
     progress = UnboundedProgressDialog(master, message)
 
     for _ in generator:

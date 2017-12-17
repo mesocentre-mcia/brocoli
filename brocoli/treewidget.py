@@ -12,6 +12,10 @@ from six.moves import tkinter_ttk as ttk
 
 
 class TreeWidget(tk.Frame):
+    """
+    The main Brocoli widget displaying Catalog directory contents inside a
+    ttk.TreeView
+    """
     __placeholder_prefix = '__placeholder_'
     __empty_prefix = '__empty_'
     __context_menu_upload = 'Upload local files'
@@ -24,7 +28,6 @@ class TreeWidget(tk.Frame):
         tk.Frame.__init__(self, master)
 
         self.master = master
-
 
         self.tree = ttk.Treeview(self, columns=('owner', 'size',
                                                 'modification time'))
@@ -64,7 +67,6 @@ class TreeWidget(tk.Frame):
         values = [st['user'], st['size'], st['mtime']]
         root_node = self.tree.insert('', 'end', iid=path, text=path,
                                      open=True, values=values)
-
 
         self.process_directory(root_node, path)
 
@@ -151,7 +153,8 @@ class TreeWidget(tk.Frame):
         state = 'active'
         if item.startswith(self.__empty_prefix):
             state = 'disabled'
-        self.context_menu.entryconfig(self.__context_menu_download, state=state)
+        self.context_menu.entryconfig(self.__context_menu_download,
+                                      state=state)
 
         self.context_menu.post(e.x_root, e.y_root)
 

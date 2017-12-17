@@ -1,3 +1,7 @@
+"""
+Implements iRODS Catalog object and methods
+"""
+
 from . import catalog
 from . import form
 
@@ -27,7 +31,9 @@ else:
 
 
 def parse_env3(path):
-    "parse iRODS v3 iCommands environment files"
+    """
+    parse iRODS v3 iCommands environment files
+    """
 
     envre = re.compile("^\s*(?P<name>\w+)(\s+|\s*=\s*)[\'\"]?(?P<value1>[^\'\"\n]*)[\'\"]?\s*$")
 
@@ -43,6 +49,10 @@ def parse_env3(path):
 
 
 def local_tree_stats(dirs):
+    """
+    Gathers stats (number of files and cumulated size) of sub-trees on a local
+    directories list
+    """
     total_nfiles = 0
     total_size = 0
 
@@ -62,10 +72,16 @@ def local_tree_stats(dirs):
 
 
 def local_files_stats(files):
+    """
+    Computes stats (number of files and cumulated size) on a file list
+    """
     return len(files), sum(os.path.getsize(f) for f in files)
 
 
 class iRODSCatalog(catalog.Catalog):
+    """
+    A Catalog for connectiong to iRODS
+    """
     @classmethod
     def encode(cls, s):
         return password_obfuscation.encode(s, _getuid())
@@ -311,6 +327,10 @@ class iRODSCatalog(catalog.Catalog):
 
 
 def irods3_catalog_from_envfile(envfile):
+    """
+    Creates an iRODSCatalog from a iRODS v3 configuration file (like
+    "~/.irods/.irodsEnv")
+    """
     env3 = parse_env3(envfile)
 
     host = env3['irodsHost']
@@ -325,6 +345,9 @@ def irods3_catalog_from_envfile(envfile):
     return iRODSCatalog(host, port, user, zone, scrambled_password)
 
 def irods3_catalog_from_config(cfg):
+    """
+    Creates an iRODSCatalog from configuration
+    """
     use_env = False
     if cfg['use_irods_env'].lower() in ['1', 'yes', 'on', 'true']:
         use_env = True
@@ -344,7 +367,6 @@ def irods3_catalog_from_config(cfg):
     store_password = cfg['store_password']
     scrambled_password = None
     if store_password.lower() in ['1', 'yes', 'on', 'true']:
-        print_(store_password)
         scrambled_password = cfg['password']
         return lambda master: iRODSCatalog(host, port, user, zone,
                                            scrambled_password)

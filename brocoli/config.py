@@ -9,8 +9,11 @@ import stat
 import tempfile
 import collections
 
-default_config_filename = os.path.expanduser('~/.brocoli.ini')
+# default config location
+default_config_filename = os.path.join(os.path.expanduser('~'),
+                                       '.brocoli.ini')
 
+# available catalogs
 catalog_dict = {
     'os': catalog.OSCatalog,
     'irods3': irodscatalog.iRODSCatalog,
@@ -20,6 +23,9 @@ catalog_types = list(catalog_dict.keys())
 
 
 class Config(collections.OrderedDict):
+    """
+    Holds the brocoli configuration loaded from the config file
+    """
 
     def connection(self, name=None):
         name = name or self['SETTINGS']['default_connection']
@@ -40,6 +46,9 @@ class Config(collections.OrderedDict):
 
 
 def load_config(filename=None):
+    """
+    Loads coniguration from file
+    """
     filename = filename or default_config_filename
 
     config = configparser.RawConfigParser()
@@ -60,7 +69,11 @@ def load_config(filename=None):
 
     return ret
 
+
 def save_config(config_dict, filename=None, update=False):
+    """
+    Writes configuration to a file
+    """
     filename = filename or default_config_filename
 
     config = configparser.RawConfigParser()

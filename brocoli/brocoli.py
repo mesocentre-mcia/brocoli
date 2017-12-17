@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 
 import six
 from six import print_
@@ -16,10 +16,14 @@ from . treewidget import TreeWidget
 from . import catalog
 from . import preferences
 
+# Brocoli version string
 __version__ = '0.1.0'
 
 
-class conn_switcher:
+class ConnectionSwitcher:
+    """
+    Provides a method that can be used to switch to a particular connection
+    """
     def __init__(self, cfg, app, conn_name):
         self.cfg = cfg
         self.app = app
@@ -29,7 +33,10 @@ class conn_switcher:
         self.app.set_connection(*self.cfg.connection(self.conn_name))
 
 
-class switcher_submenu:
+class SwitcherSubmenu:
+    """
+    A menu containing a list of connections to switch to
+    """
     def __init__(self, cfg, connection_menu, app):
         self.cfg = cfg
         self.app = app
@@ -45,7 +52,7 @@ class switcher_submenu:
         switch_menu = tk.Menu(self.menu, tearoff=False)
 
         for c in self.cfg.connection_names():
-            cs = conn_switcher(self.cfg, self.app, c)
+            cs = ConnectionSwitcher(self.cfg, self.app, c)
             switch_menu.add_command(label=c, command=cs.switch)
 
         self.menu.insert_cascade(index, label=self.menu_name,
@@ -53,8 +60,12 @@ class switcher_submenu:
 
 
 def application(cfg, connection_name, path):
+    """
+    Executes the Brocoli application
+    """
+
     def new_connection():
-        dialog = preferences.NewConnectionDialog(root)
+        dialog = preferences.ConnectionConfigDialog(root)
 
         if dialog.result is None:
             return
@@ -69,12 +80,16 @@ def application(cfg, connection_name, path):
             ss.cfg = prefs.connection_manager.cfg
             ss.populate()
 
+    # run Tk
     root = tk.Tk()
 
+    # get connection
     cat, root_path = cfg.connection(connection_name)
 
+    # main window tree view
     app = TreeWidget(root, cat, path=path or root_path)
 
+    # create menus
     menubar = tk.Menu(root)
 
     connection_menu = tk.Menu(menubar, tearoff=False)
@@ -82,7 +97,7 @@ def application(cfg, connection_name, path):
     connection_menu.add_command(label="New connection", command=new_connection)
     switch_menu = None
 
-    ss = switcher_submenu(cfg, connection_menu, app)
+    ss = SwitcherSubmenu(cfg, connection_menu, app)
     ss.populate()
 
     connection_menu.add_command(label="Preferences", command=open_preferences)
@@ -92,13 +107,20 @@ def application(cfg, connection_name, path):
 
     root.config(menu=menubar)
 
+    # layout
     root.rowconfigure(0, weight=1)
     root.columnconfigure(0, weight=1)
 
+    # event loop
     root.mainloop()
 
 
 def main():
+    """
+    Main function for the Brocoli application. Handles command line arguments
+    and loads configuration before launching the application window
+    """
+
     parser = argparse.ArgumentParser(description='Browse catalog')
     parser.add_argument('path', metavar='PATH', nargs='?', default=None,
                         help='a path in the catalog')

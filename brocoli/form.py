@@ -4,30 +4,63 @@ from six.moves import tkinter_ttk as ttk
 
 import re
 
+"""
+Defines helper classes to build forms
+"""
+
+
 class FormField(object):
+    """
+    Base class for form fields objects. Most methods should be overridden.
+    """
     def __init__(self, text='', tags=None):
+        """
+        Constructor
+        """
         self.text = text
         self.tags = tags or []
 
     def from_string(self, s):
+        """
+        Sets field value from argument string
+        """
         raise NotImplementedError
 
     def to_string(self):
+        """
+        Translates field value to string
+        """
         raise NotImplementedError
 
     def get_widget(self, master):
+        """
+        Creates a new "entry" widget
+        """
         raise NotImplementedError
 
     def get_widgets(self, master):
+        """
+        Returns a pair consisting of a label and an "entry" widget
+        """
         return tk.Label(master, text=self.text), self.get_widget(master)
 
     def disables(self):
+        """
+        Returns a list of tags that are "disabled" by the current FormField
+        """
         return []
 
     def enables(self):
+        """
+        Returns a list of tags that are "enabled" by the current FormField
+        """
         return []
 
+
 class TextField(FormField):
+    """
+    A FormField holding a text (a tk.Entry)
+    """
     def __init__(self, text, default_value='', validate_command=None,
                  password_mode=False, tags=None):
         super(TextField, self).__init__(text, tags=tags)
@@ -44,9 +77,9 @@ class TextField(FormField):
         return self.var.get()
 
     def get_widget(self, master):
-        show=''
+        show = ''
         if self.password_mode:
-            show='*'
+            show = '*'
 
         entry = tk.Entry(master, textvariable=self.var, show=show)
 
@@ -58,19 +91,26 @@ class TextField(FormField):
 
 
 class HostnameField(TextField):
+    """
+    A TextField accepting host names only
+    """
     __hostname_re = re.compile('^([_\-\d\w]+(\.)?)*$')
 
     def __init__(self, text, default_value='', tags=None):
         super(HostnameField, self).__init__(text, default_value, self.validate,
-              tags=tags)
+                                            tags=tags)
 
     def validate(self, v):
-        ok = self.__hostname_re.match(v) != None
+        ok = self.__hostname_re.match(v) is not None
 
         return ok
 
 
 class PasswordField(TextField):
+    """
+    A TextField for a password. The tk.Entry displays stars instead of the
+    current text value
+    """
     def __init__(self, text, encode=lambda s: s, decode=lambda s: s,
                  return_cb=None, tags=None):
         super(PasswordField, self).__init__(text, password_mode=True,
@@ -94,10 +134,14 @@ class PasswordField(TextField):
 
         return entry
 
+
 class IntegerField(TextField):
+    """
+    A TextField accepting only integer litterals
+    """
     def validate(self, v):
         try:
-            iv=int(v)
+            iv = int(v)
             return True
         except:
             pass
@@ -110,6 +154,9 @@ class IntegerField(TextField):
 
 
 class BooleanField(FormField):
+    """
+    A FormField holding a bool, manifested by a tk.Checkbutton
+    """
     def __init__(self, text, default_value=False, disables_tags=None,
                  enables_tags=None, tags=None):
         super(BooleanField, self).__init__(text, tags=tags)
@@ -155,12 +202,16 @@ class BooleanField(FormField):
 
         return tk.DISABLED
 
+
 class FieldContainer(tk.Frame, object):
+    """
+    A tk.Frame sub-class specialized to propagate state changes to its children
+    """
     def config(self, **options):
         frame_options = options.copy()
 
         if 'state' in frame_options:
-            v  = frame_options['state']
+            v = frame_options['state']
             del frame_options['state']
 
             for slave in self.slaves():
@@ -168,9 +219,14 @@ class FieldContainer(tk.Frame, object):
 
         tk.Frame.config(self, **frame_options)
 
+
 class RadioChoiceField(FormField):
-    def __init__(self, text, values, default_value = None, vertical=True,
-                 tags = None):
+    """
+    A FormField allowing to choose between several fixed values, manifested by
+    tk.Radiobuttons
+    """
+    def __init__(self, text, values, default_value=None, vertical=True,
+                 tags=None):
         super(RadioChoiceField, self).__init__(text, tags=tags)
 
         self.values = values
@@ -201,6 +257,10 @@ class RadioChoiceField(FormField):
 
 
 class ComboboxChoiceField(FormField):
+    """
+    A FormField allowing to choose between several fixed values, manifested by
+    a ttk.Combobox
+    """
     def __init__(self, text, values, default_value=None, tags=None):
         super(ComboboxChoiceField, self).__init__(text, tags=tags)
 
@@ -220,7 +280,12 @@ class ComboboxChoiceField(FormField):
     def get_widget(self, master):
         return ttk.Combobox(master, values=self.values, textvariable=self.var)
 
+
 class FormFrame(tk.Frame, object):
+    """
+    A tk.Frame fr holding a form (i.e. a list of FormField generated widget
+    pairs)
+    """
     class TagTargets(list):
         def __init__(self):
             self.state = tk.DISABLED
@@ -228,7 +293,7 @@ class FormFrame(tk.Frame, object):
     def __init__(self, master):
         tk.Frame.__init__(self, master)
 
-        self.disablers =  {}
+        self.disablers = {}
         self.enablers = {}
         self.tag_dict = {}
 
@@ -320,7 +385,6 @@ if __name__ == '__main__':
 
     cbcf = ComboboxChoiceField('comboboxchoice:', ['yi', 'er', 'san'],
                                tags=['toto'])
-
 
     ff = FormFrame(master)
     ff.grid_fields([hf, bf, pf, if_, rbc, cbcf])

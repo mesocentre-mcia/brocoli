@@ -1,3 +1,7 @@
+"""
+Preferences handling widgets
+"""
+
 from six import print_
 from six.moves import tkinter as tk
 from six.moves import tkinter_tksimpledialog as tksimpledialog
@@ -10,7 +14,10 @@ import collections
 from . import config
 from . import form
 
-class NewConnectionDialog(tksimpledialog.Dialog, object):
+class ConnectionConfigDialog(tksimpledialog.Dialog, object):
+    """
+    A dialog to configure connections
+    """
     def __init__(self, master, connection_name='new-connection',
                  catalog_type=config.catalog_types[0],
                  root_path=tempfile.gettempdir(), isdefault=False,
@@ -21,7 +28,7 @@ class NewConnectionDialog(tksimpledialog.Dialog, object):
         self.isdefault = isdefault
         self.catalog_config = catalog_config
 
-        super(NewConnectionDialog, self).__init__(master, **kwargs)
+        super(ConnectionConfigDialog, self).__init__(master, **kwargs)
 
     def body(self, master):
         tk.Label(master, text='Connection name:').grid(row=0)
@@ -103,6 +110,9 @@ class NewConnectionDialog(tksimpledialog.Dialog, object):
 
 
 class ConnectionManager(tk.Frame):
+    """
+    Displays connections and allows to add, remove and edit them
+    """
     def __init__(self, master, config_filename):
         tk.Frame.__init__(self, master)
 
@@ -166,7 +176,7 @@ class ConnectionManager(tk.Frame):
 
 
     def add(self):
-        n = NewConnectionDialog(self)
+        n = ConnectionConfigDialog(self)
         new = n.result
         if new is None:
             return
@@ -210,7 +220,7 @@ class ConnectionManager(tk.Frame):
             isdefault = 1
         print_(name, catalog_type, root_path, isdefault)
 
-        n = NewConnectionDialog(self, name, catalog_type, root_path, isdefault,
+        n = ConnectionConfigDialog(self, name, catalog_type, root_path, isdefault,
                                 catalog_config=self.cfg['connection:' + name])
         new = n.result
         if new is None:
@@ -247,6 +257,9 @@ class ConnectionManager(tk.Frame):
                 b.config(state=tk.DISABLED)
 
 class Preferences(tksimpledialog.Dialog):
+    """
+    Preferences dialog
+    """
     def body(self, master):
         self.connection_manager = ConnectionManager(master, None)
         self.connection_manager.grid(row=0)
