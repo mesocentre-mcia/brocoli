@@ -24,8 +24,8 @@ class FormField(object):
     def disables(self):
         return []
 
-    def disables_state(self):
-        raise NotImplementedError
+    def enables(self):
+        return []
 
 class TextField(FormField):
     def __init__(self, text, default_value='', validate_command=None,
@@ -72,12 +72,13 @@ class HostnameField(TextField):
 
 class PasswordField(TextField):
     def __init__(self, text, encode=lambda s: s, decode=lambda s: s,
-                 tags=None):
+                 return_cb=None, tags=None):
         super(PasswordField, self).__init__(text, password_mode=True,
                                             tags=tags)
 
         self.encode = encode
         self.decode = decode
+        self.return_cb = return_cb
 
     def from_string(self, s):
         self.var.set(self.decode(s))
@@ -85,7 +86,13 @@ class PasswordField(TextField):
     def to_string(self):
         return self.encode(self.var.get())
 
+    def get_widget(self, master):
+        entry = super(PasswordField, self).get_widget(master)
 
+        if self.return_cb is not None:
+            entry.bind('<Return>', lambda e: self.return_cb())
+
+        return entry
 
 class IntegerField(TextField):
     def validate(self, v):
@@ -104,13 +111,14 @@ class IntegerField(TextField):
 
 class BooleanField(FormField):
     def __init__(self, text, default_value=False, disables_tags=None,
-                 tags=None):
+                 enables_tags=None, tags=None):
         super(BooleanField, self).__init__(text, tags=tags)
 
         self.text = text
         self.var = tk.BooleanVar()
         self.var.set(default_value)
         self.disables_tags = disables_tags or []
+        self.enables_tags = enables_tags or []
 
     def from_string(self, s):
         self.var.set(s)
@@ -120,7 +128,7 @@ class BooleanField(FormField):
 
     def get_widget(self, master):
         def changed(*args):
-            master.set_disables(self)
+            master.disenables_changed(self)
 
         return tk.Checkbutton(master, text=self.text, variable=self.var,
                               onvalue=True, offvalue=False,
@@ -132,8 +140,20 @@ class BooleanField(FormField):
     def disables(self):
         return self.disables_tags
 
+    def enables(self):
+        return self.enables_tags
+
     def disables_state(self):
-        return self.var.get()
+        if self.var.get():
+            return tk.DISABLED
+
+        return tk.NORMAL
+
+    def enables_state(self):
+        if self.var.get():
+            return tk.NORMAL
+
+        return tk.DISABLED
 
 class FieldContainer(tk.Frame, object):
     def config(self, **options):
@@ -201,14 +221,20 @@ class ComboboxChoiceField(FormField):
         return ttk.Combobox(master, values=self.values, textvariable=self.var)
 
 class FormFrame(tk.Frame, object):
+    class TagTargets(list):
+        def __init__(self):
+            self.state = tk.DISABLED
+
     def __init__(self, master):
         tk.Frame.__init__(self, master)
 
         self.disablers =  {}
+        self.enablers = {}
         self.tag_dict = {}
 
     def grid_fields(self, fieldlist):
         disablers = {}
+        enablers = {}
         tag_dict = {}
         i = 0
         for field in fieldlist:
@@ -216,12 +242,15 @@ class FormFrame(tk.Frame, object):
             disables = field.disables()
             if disables:
                 disablers[field] = disables
+            enables = field.enables()
+            if enables:
+                enablers[field] = enables
 
             widgets = field.get_widgets(self)
             j = 0
             for w in widgets:
                 for t in tags:
-                    v = tag_dict.get(t, [])
+                    v = tag_dict.get(t, self.TagTargets())
                     v.append(w)
                     tag_dict[t] = v
 
@@ -230,28 +259,55 @@ class FormFrame(tk.Frame, object):
             i += 1
 
         self.disablers.update(disablers)
+        self.enablers.update(enablers)
         self.tag_dict.update(tag_dict)
 
         for disabler in disablers:
             self.set_disables(disabler)
 
+        for enabler in enablers:
+            self.set_enables(enabler)
+
     def set_disables(self, field):
         tags = self.disablers[field]
 
-        state = tk.NORMAL
-        if field.disables_state():
-            state = tk.DISABLED
+        state = field.disables_state()
 
         for tag in tags:
-            for w in self.tag_dict[tag]:
-                w.config(state=state)
+            tag_targets = self.tag_dict[tag]
+            tag_targets.state = state
+            for w in tag_targets:
+                state = tk.NORMAL
+                for tt in self.tag_dict.values():
+                    if tt.state == tk.DISABLED and w in tt:
+                        state = tk.DISABLED
+                    w.config(state=state)
+
+    def set_enables(self, field):
+        tags = self.enablers[field]
+
+        state = field.enables_state()
+
+        for tag in tags:
+            tag_targets = self.tag_dict[tag]
+            tag_targets.state = state
+            for w in tag_targets:
+                state = tk.NORMAL
+                for tt in self.tag_dict.values():
+                    if tt.state == tk.DISABLED and w in tt:
+                        state = tk.DISABLED
+                    w.config(state=state)
+
+    def disenables_changed(self, field):
+        if field in self.enablers:
+            self.set_enables(field)
+        if field in self.disablers:
+            self.set_disables(field)
 
 if __name__ == '__main__':
     master = tk.Tk()
 
     hf = HostnameField('host:')
-
-    e = hf.get_widget(master)
 
     bf = BooleanField('toto', disables_tags=['toto'])
 

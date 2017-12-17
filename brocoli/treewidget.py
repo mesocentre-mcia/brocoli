@@ -54,7 +54,7 @@ class TreeWidget(tk.Frame):
         self.set_connection(catalog, path)
 
     def set_connection(self, catalog, path):
-        self.catalog = catalog
+        self.catalog = catalog(self)
         self.path = path
 
         for child in self.tree.get_children():

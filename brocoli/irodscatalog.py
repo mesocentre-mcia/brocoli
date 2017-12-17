@@ -7,6 +7,7 @@ import hashlib
 import collections
 
 from six import print_
+from six.moves import tkinter as tk
 
 import irods
 from irods.session import iRODSSession
@@ -66,16 +67,16 @@ def local_files_stats(files):
 
 class iRODSCatalog(catalog.Catalog):
     @classmethod
-    def __encode(cls, s):
+    def encode(cls, s):
         return password_obfuscation.encode(s, _getuid())
 
     @classmethod
-    def __decode(cls, s):
+    def decode(cls, s):
         return password_obfuscation.decode(s, _getuid())
 
     def __init__(self, host, port, user, zone, scrambled_password):
         self.session = iRODSSession(host=host, port=port, user=user,
-                                    password=iRODSCatalog.__decode(scrambled_password),
+                                    password=iRODSCatalog.decode(scrambled_password),
                                     zone=zone)
 
         self.dom = self.session.data_objects
@@ -299,10 +300,13 @@ class iRODSCatalog(catalog.Catalog):
             ('port', form.IntegerField('iRODS port:', '1247', tags=tags)),
             ('zone', form.TextField('iRODS zone:', tags=tags)),
             ('user_name', form.TextField('iRODS user name:', tags=tags)),
+            ('store_password', form.BooleanField('Remember password',
+                                                 enables_tags=['password'],
+                                                 tags=tags)),
             ('password', form.PasswordField('iRODS password:',
-                                            encode=cls.__encode,
-                                            decode=cls.__decode,
-                                            tags=tags)),
+                                            encode=cls.encode,
+                                            decode=cls.decode,
+                                            tags=tags + ['password'])),
         ])
 
 
@@ -331,12 +335,34 @@ def irods3_catalog_from_config(cfg):
 
     if use_env:
         envfile = os.path.join(os.path.expanduser('~'), '.irods', '.irodsEnv')
-        return irods3_catalog_from_envfile(envfile)
+        return lambda master: irods3_catalog_from_envfile(envfile)
 
     host = cfg['host']
     port = cfg['port']
     user = cfg['user_name']
     zone = cfg['zone']
-    scrambled_password = cfg['password']
+    store_password = cfg['store_password']
+    scrambled_password = None
+    if store_password.lower() in ['1', 'yes', 'on', 'true']:
+        print_(store_password)
+        scrambled_password = cfg['password']
+        return lambda master: iRODSCatalog(host, port, user, zone,
+                                           scrambled_password)
+    else:
+        def ask_password(master):
+            tl = tk.Toplevel(master)
+            tl.transient(master)
 
-    return iRODSCatalog(host, port, user, zone, scrambled_password)
+            ff = form.FormFrame(tl)
+            pf = form.PasswordField('enter iRODS password:',
+                                    return_cb=tl.destroy)
+            ff.grid_fields([pf])
+            ff.pack()
+
+            tl.wait_window()
+
+            scrambled_password = iRODSCatalog.encode(pf.to_string())
+
+            return iRODSCatalog(host, port, user, zone, scrambled_password)
+
+        return ask_password

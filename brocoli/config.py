@@ -29,7 +29,7 @@ class Config(collections.OrderedDict):
         cat = None
         catalog_type = conn['catalog_type']
         if catalog_type == 'os':
-            cat = catalog.OSCatalog()
+            cat = lambda master: catalog.OSCatalog()
         elif catalog_type == 'irods3':
             cat = irodscatalog.irods3_catalog_from_config(conn)
 
