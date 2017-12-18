@@ -45,9 +45,20 @@ class Config(collections.OrderedDict):
         return [k.split(':', 1)[1] for k in self if k.startswith('connection:')]
 
 
+def bootstrap_config_parser(config):
+    """
+    Fills ConfigParser object with minimal values
+    """
+    config.add_section('SETTINGS')
+    config.set('SETTINGS', 'default_connection', 'default')
+    config.add_section('connection:default')
+    config.set('connection:default', 'catalog_type', 'os')
+    config.set('connection:default', 'root_path', tempfile.gettempdir())
+
+
 def load_config(filename=None):
     """
-    Loads coniguration from file
+    Loads configuration from file
     """
     filename = filename or default_config_filename
 
@@ -56,11 +67,7 @@ def load_config(filename=None):
     if os.path.exists(filename):
         config.read(filename)
     else:
-        config.add_section('SETTINGS')
-        config.set('SETTINGS', 'default_connection', 'default')
-        config.add_section('connection:default')
-        config.set('connection:default', 'catalog_type', 'os')
-        config.set('connection:default', 'root_path', tempfile.gettempdir())
+        bootstrap_config_parser(config)
 
     ret = Config()
 
@@ -78,8 +85,11 @@ def save_config(config_dict, filename=None, update=False):
 
     config = configparser.RawConfigParser()
 
-    if update and os.path.exists(filename):
-        config.read(filename)
+    if update:
+        if os.path.exists(filename):
+            config.read(filename)
+        else:
+            bootstrap_config_parser(config)
 
     for section, section_content in config_dict.items():
         if not config.has_section(section):
