@@ -214,11 +214,11 @@ class ConnectionManager(tk.Frame):
         item = self.tree.item(selected)
         name = item['text']
         catalog_type, root_path, isdefault = item['values']
-        if isdefault is '':
+
+        if isdefault == '':
             isdefault = 0
         else:
             isdefault = 1
-        print_(name, catalog_type, root_path, isdefault)
 
         n = ConnectionConfigDialog(self, name, catalog_type, root_path, isdefault,
                                 catalog_config=self.cfg['connection:' + name])
