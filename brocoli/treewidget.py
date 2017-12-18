@@ -1,6 +1,7 @@
 from . import catalog
 from . progress_dialog import progress_from_generator as progress
 from . progress_dialog import unbounded_progress_from_generator as uprogress
+from . import exceptions
 
 import six
 from six import print_
@@ -9,7 +10,7 @@ from six.moves import tkinter as tk
 from six.moves import tkinter_tkfiledialog as filedialog
 from six.moves import tkinter_tksimpledialog as simpledialog
 from six.moves import tkinter_ttk as ttk
-
+from six.moves import tkinter_messagebox as messagebox
 
 class TreeWidget(tk.Frame):
     """
@@ -56,15 +57,30 @@ class TreeWidget(tk.Frame):
 
         self.set_connection(catalog, path)
 
-    def set_connection(self, catalog, path):
-        self.catalog = catalog(self)
+    def set_connection(self, catalog_factory, path):
+        try:
+            catalog = catalog_factory(self)
+
+            st = catalog.lstat(path)
+            values = [st['user'], st['size'], st['mtime']]
+        except IOError as e:
+            if e.errno == exceptions.errno.ENOENT:
+                messagebox.showerror('Connection error',
+                                     ('Connection root path \'{}\' does ' +
+                                      'not exist on catalog').format(path))
+                return
+        except exceptions.ConnectionError as e:
+            messagebox.showerror('Connection error',
+                                 ('Connection failed with error: ' +
+                                  '{}').format(str(e)))
+            return
+
+        self.catalog = catalog
         self.path = path
 
         for child in self.tree.get_children():
             self.tree.delete(child)
 
-        st = self.catalog.lstat(self.path)
-        values = [st['user'], st['size'], st['mtime']]
         root_node = self.tree.insert('', 'end', iid=path, text=path,
                                      open=True, values=values)
 

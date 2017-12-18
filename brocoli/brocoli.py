@@ -86,26 +86,26 @@ def application(cfg, connection_name, path):
     # get connection
     cat, root_path = cfg.connection(connection_name)
 
-    # main window tree view
-    app = TreeWidget(root, cat, path=path or root_path)
-
     # create menus
     menubar = tk.Menu(root)
 
     connection_menu = tk.Menu(menubar, tearoff=False)
 
-    connection_menu.add_command(label="New connection", command=new_connection)
-    switch_menu = None
-
-    ss = SwitcherSubmenu(cfg, connection_menu, app)
-    ss.populate()
-
-    connection_menu.add_command(label="Preferences", command=open_preferences)
     menubar.add_cascade(label='Settings', menu=connection_menu)
 
     menubar.add_command(label="Quit!", command=root.quit)
 
     root.config(menu=menubar)
+
+    # main window tree view, populate connection menu
+    app = TreeWidget(root, cat, path=path or root_path)
+
+    connection_menu.add_command(label="New connection", command=new_connection)
+
+    ss = SwitcherSubmenu(cfg, connection_menu, app)
+    ss.populate()
+
+    connection_menu.add_command(label="Preferences", command=open_preferences)
 
     # layout
     root.rowconfigure(0, weight=1)

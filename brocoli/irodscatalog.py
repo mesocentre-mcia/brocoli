@@ -4,6 +4,7 @@ Implements iRODS Catalog object and methods
 
 from . import catalog
 from . import form
+from . import exceptions
 
 import re
 import os
@@ -20,7 +21,7 @@ from irods.manager.data_object_manager import DataObjectManager
 from irods.manager.collection_manager import CollectionManager
 from irods.models import DataObject, Collection
 import irods.keywords as kw
-import irods.exception as exceptions
+import irods.exception
 
 _getuid = None
 if hasattr(os, 'getuid'):
@@ -35,7 +36,9 @@ def parse_env3(path):
     parse iRODS v3 iCommands environment files
     """
 
-    envre = re.compile("^\s*(?P<name>\w+)(\s+|\s*=\s*)[\'\"]?(?P<value1>[^\'\"\n]*)[\'\"]?\s*$")
+    pat = ("^\s*(?P<name>\w+)" + "(\s+|\s*=\s*)[\'\"]?(?P<value1>[^\'\"\n]*)" +
+           "[\'\"]?\s*$")
+    envre = re.compile(pat)
 
     ret = {}
 
@@ -78,6 +81,19 @@ def local_files_stats(files):
     return len(files), sum(os.path.getsize(f) for f in files)
 
 
+def translate_exceptions(method):
+    """
+    Method decorator that translates iRODS to Brocoli exceptions
+    """
+    def method_wrapper(self, *args, **kwargs):
+        try:
+            return method(self, *args, **kwargs)
+        except irods.exception.CAT_INVALID_AUTHENTICATION as e:
+            raise exceptions.ConnectionError(e)
+
+    return method_wrapper
+
+
 class iRODSCatalog(catalog.Catalog):
     """
     A Catalog for connectiong to iRODS
@@ -91,9 +107,12 @@ class iRODSCatalog(catalog.Catalog):
         return password_obfuscation.decode(s, _getuid())
 
     def __init__(self, host, port, user, zone, scrambled_password):
-        self.session = iRODSSession(host=host, port=port, user=user,
-                                    password=iRODSCatalog.decode(scrambled_password),
-                                    zone=zone)
+        try:
+            password = iRODSCatalog.decode(scrambled_password)
+            self.session = iRODSSession(host=host, port=port, user=user,
+                                        password=password, zone=zone)
+        except irods.exception.CAT_INVALID_AUTHENTICATION as e:
+            raise exceptions.ConnectionError(e)
 
         self.dom = self.session.data_objects
         self.cm = self.session.collections
@@ -109,6 +128,7 @@ class iRODSCatalog(catalog.Catalog):
         dirname, _ = self.splitname(path)
         return dirname
 
+    @translate_exceptions
     def lstat(self, path):
         if self.isdir(path):
             return self.lstat_dir(path)
@@ -120,7 +140,12 @@ class iRODSCatalog(catalog.Catalog):
 
         r = q.one()
 
-        ret = {'user': r[Collection.owner_name], 'size': '', 'mtime': ''}
+        ret = {
+            'user': r[Collection.owner_name],
+            'size': '',
+            'mtime': '',
+            'nreplicas': '',
+        }
 
         return ret
 
@@ -131,10 +156,15 @@ class iRODSCatalog(catalog.Catalog):
         q = q.filter(Collection.name == dirname)
         q = q.filter(DataObject.name == basename)
 
-        ret = {}
+        replicas = q.all()
+        if len(replicas) < 1:
+            # no replica
+            raise exceptions.ioerror(exceptions.errno.ENOENT)
+
+        ret = {'nreplicas': len(replicas)}
         minsize = None
         maxsize = 0
-        for r in q.all():
+        for r in replicas:
             ret['user'] = r[DataObject.owner_name]
             ret['mtime'] = r[DataObject.modify_time]
             size = r[DataObject.size]
@@ -218,8 +248,6 @@ class iRODSCatalog(catalog.Catalog):
             with open(filename, 'rb') as f:
                 m.update(f.read())
 
-            #print_(filename, m.hexdigest())
-
             return m.hexdigest()
 
         if not path.endswith('/'):
@@ -260,7 +288,7 @@ class iRODSCatalog(catalog.Catalog):
             try:
                 coll = self.cm.create(cpath)
                 remove = False
-            except exceptions.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
+            except irods.exception.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
                 pass
 
             for y in self._upload_dir(abspath, cpath):
@@ -276,7 +304,7 @@ class iRODSCatalog(catalog.Catalog):
 
             try:
                 self.cm.create(cpath)
-            except exceptions.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
+            except irods.exception.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
                 pass
 
             for s in self._upload_dir(d, cpath):
@@ -344,6 +372,7 @@ def irods3_catalog_from_envfile(envfile):
 
     return iRODSCatalog(host, port, user, zone, scrambled_password)
 
+
 def irods3_catalog_from_config(cfg):
     """
     Creates an iRODSCatalog from configuration
@@ -354,7 +383,8 @@ def irods3_catalog_from_config(cfg):
     elif cfg['use_irods_env'].lower() in ['0', 'no', 'off', 'false']:
         use_env = False
     else:
-        raise ValueError('invalid irods_use_env value: {}'.format(cfg['use_irods_env']))
+        msg = 'invalid irods_use_env value: {}'.format(cfg['use_irods_env'])
+        raise ValueError(msg)
 
     if use_env:
         envfile = os.path.join(os.path.expanduser('~'), '.irods', '.irodsEnv')
