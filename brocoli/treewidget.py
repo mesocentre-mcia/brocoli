@@ -265,6 +265,17 @@ class TreeWidget(tk.Frame):
 
         files, directories = self._split_files_and_directories(selection)
 
+        if len(selection) > 0:
+            msg = 'Delete '
+            msg_list = []
+            if len(files) > 0:
+                msg_list.append('{} files'.format(len(files)))
+            if len(directories) > 0:
+                msg_list.append('{} directories'.format(len(directories)))
+            msg += ' and '.join(msg_list)
+            if not messagebox.askokcancel('Confirm Delete', msg):
+                return
+
         parents = {self.tree.parent(f) for f in selection}
 
         if files:
