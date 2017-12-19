@@ -90,6 +90,8 @@ def translate_exceptions(method):
             return method(self, *args, **kwargs)
         except irods.exception.CAT_INVALID_AUTHENTICATION as e:
             raise exceptions.ConnectionError(e)
+        except irods.exception.CAT_UNKNOWN_COLLECTION as e:
+            raise exceptions.FileNotFoundError(e)
 
     return method_wrapper
 
@@ -180,6 +182,7 @@ class iRODSCatalog(catalog.Catalog):
 
         return ret
 
+    @translate_exceptions
     def listdir(self, path):
         q = self.session.query(DataObject.name).filter(Collection.name == path)
         files = [r[DataObject.name] for r in q.all()]
@@ -189,6 +192,7 @@ class iRODSCatalog(catalog.Catalog):
         colls = [self.basename(c[Collection.name]) for c in q.all()]
         return colls + files
 
+    @translate_exceptions
     def isdir(self, path):
         q = self.session.query(Collection.id).filter(Collection.name == path)
 
@@ -202,6 +206,7 @@ class iRODSCatalog(catalog.Catalog):
     def join(self, *args):
         return '/'.join(args)
 
+    @translate_exceptions
     def download_files(self, pathlist, destdir):
         options = {kw.FORCE_FLAG_KW: ''}
 
@@ -228,12 +233,14 @@ class iRODSCatalog(catalog.Catalog):
             for y in self._download_coll(subcoll, destdir):
                 yield y
 
+    @translate_exceptions
     def download_directories(self, pathlist, destdir):
         for p in pathlist:
             coll = self.cm.get(p)
             for y in self._download_coll(coll, destdir):
                 yield y
 
+    @translate_exceptions
     def upload_files(self, files, path):
         nfiles, size = local_files_stats(files)
 
@@ -294,6 +301,7 @@ class iRODSCatalog(catalog.Catalog):
             for y in self._upload_dir(abspath, cpath):
                 yield y
 
+    @translate_exceptions
     def upload_directories(self, dirs, path):
         nfiles, size = local_tree_stats(dirs)
 
@@ -311,6 +319,7 @@ class iRODSCatalog(catalog.Catalog):
                 completed += s
                 yield completed, size
 
+    @translate_exceptions
     def delete_files(self, files):
         number = len(files)
 
@@ -320,6 +329,7 @@ class iRODSCatalog(catalog.Catalog):
             i += 1
             yield i, number
 
+    @translate_exceptions
     def delete_directories(self, directories):
         number = len(directories)
 
@@ -329,6 +339,7 @@ class iRODSCatalog(catalog.Catalog):
             i += 1
             yield i, number
 
+    @translate_exceptions
     def mkdir(self, path):
         self.cm.create(path)
 

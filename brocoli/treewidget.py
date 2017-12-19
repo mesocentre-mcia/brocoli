@@ -12,6 +12,30 @@ from six.moves import tkinter_tksimpledialog as simpledialog
 from six.moves import tkinter_ttk as ttk
 from six.moves import tkinter_messagebox as messagebox
 
+
+def handle_catalog_exceptions(method):
+    """
+    Method decorator that presents Brocoli exceptions to the user with messages
+    """
+    def method_wrapper(self, *args, **kwargs):
+        try:
+            return method(self, *args, **kwargs)
+        except exceptions.ConnectionError as e:
+            messagebox.showerror('Catalog Connection Error',
+                                 ('Connection failed: ' +
+                                  '{}').format(str(e)))
+        except exceptions.FileNotFoundError as e:
+            messagebox.showerror('File Not Found',
+                                 ('Catalog file was not found: ' +
+                                  '{}').format(str(e)))
+        except Exception as e:
+            messagebox.showerror('Unknown Error',
+                                 ('Some unknown exception occurred: ' +
+                                  '{}').format(str(e)))
+
+    return method_wrapper
+
+
 class TreeWidget(tk.Frame):
     """
     The main Brocoli widget displaying Catalog directory contents inside a
@@ -185,6 +209,7 @@ class TreeWidget(tk.Frame):
 
         return files, directories
 
+    @handle_catalog_exceptions
     def download(self):
         selection = self.get_selection()
         destdir = filedialog.askdirectory()
@@ -204,6 +229,7 @@ class TreeWidget(tk.Frame):
                       'download {} directories'.format(len(directories)),
                       self.catalog.download_directories(directories, destdir))
 
+    @handle_catalog_exceptions
     def upload(self):
         path = self.get_selection()[0]
         files = filedialog.askopenfilenames()
@@ -217,6 +243,7 @@ class TreeWidget(tk.Frame):
 
         self.process_directory(path, path)
 
+    @handle_catalog_exceptions
     def upload_directory(self):
         path = self.get_selection()[0]
         directory = filedialog.askdirectory()
@@ -230,6 +257,7 @@ class TreeWidget(tk.Frame):
 
         self.process_directory(path, path)
 
+    @handle_catalog_exceptions
     def delete(self):
         selection = self.get_selection()
 
@@ -250,6 +278,7 @@ class TreeWidget(tk.Frame):
         for parent in parents:
             self.process_directory(parent, parent)
 
+    @handle_catalog_exceptions
     def mkdir(self):
         parent = self.get_selection()[0]
         name = simpledialog.askstring('Create new directory',

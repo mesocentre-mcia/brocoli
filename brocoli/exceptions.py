@@ -13,6 +13,9 @@ class BrocoliError(Exception):
 class ConnectionError(BrocoliError):
     pass
 
+class FileNotFoundError(BrocoliError):
+    pass
+
 
 def ioerror(no):
     return IOError(no, os.strerror(no))
