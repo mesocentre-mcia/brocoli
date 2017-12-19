@@ -1,6 +1,7 @@
 from . import catalog
 from . progress_dialog import progress_from_generator as progress
 from . progress_dialog import unbounded_progress_from_generator as uprogress
+from . import exceptions
 
 import six
 from six import print_
@@ -9,6 +10,30 @@ from six.moves import tkinter as tk
 from six.moves import tkinter_tkfiledialog as filedialog
 from six.moves import tkinter_tksimpledialog as simpledialog
 from six.moves import tkinter_ttk as ttk
+from six.moves import tkinter_messagebox as messagebox
+
+
+def handle_catalog_exceptions(method):
+    """
+    Method decorator that presents Brocoli exceptions to the user with messages
+    """
+    def method_wrapper(self, *args, **kwargs):
+        try:
+            return method(self, *args, **kwargs)
+        except exceptions.ConnectionError as e:
+            messagebox.showerror('Catalog Connection Error',
+                                 ('Connection failed: ' +
+                                  '{}').format(str(e)))
+        except exceptions.FileNotFoundError as e:
+            messagebox.showerror('File Not Found',
+                                 ('Catalog file was not found: ' +
+                                  '{}').format(str(e)))
+        except Exception as e:
+            messagebox.showerror('Unknown Error',
+                                 ('Some unknown exception occurred: ' +
+                                  '{}').format(str(e)))
+
+    return method_wrapper
 
 
 class TreeWidget(tk.Frame):
@@ -56,15 +81,30 @@ class TreeWidget(tk.Frame):
 
         self.set_connection(catalog, path)
 
-    def set_connection(self, catalog, path):
-        self.catalog = catalog(self)
+    def set_connection(self, catalog_factory, path):
+        try:
+            catalog = catalog_factory(self)
+
+            st = catalog.lstat(path)
+            values = [st['user'], st['size'], st['mtime']]
+        except IOError as e:
+            if e.errno == exceptions.errno.ENOENT:
+                messagebox.showerror('Connection error',
+                                     ('Connection root path \'{}\' does ' +
+                                      'not exist on catalog').format(path))
+                return
+        except exceptions.ConnectionError as e:
+            messagebox.showerror('Connection error',
+                                 ('Connection failed with error: ' +
+                                  '{}').format(str(e)))
+            return
+
+        self.catalog = catalog
         self.path = path
 
         for child in self.tree.get_children():
             self.tree.delete(child)
 
-        st = self.catalog.lstat(self.path)
-        values = [st['user'], st['size'], st['mtime']]
         root_node = self.tree.insert('', 'end', iid=path, text=path,
                                      open=True, values=values)
 
@@ -169,6 +209,7 @@ class TreeWidget(tk.Frame):
 
         return files, directories
 
+    @handle_catalog_exceptions
     def download(self):
         selection = self.get_selection()
         destdir = filedialog.askdirectory()
@@ -188,6 +229,7 @@ class TreeWidget(tk.Frame):
                       'download {} directories'.format(len(directories)),
                       self.catalog.download_directories(directories, destdir))
 
+    @handle_catalog_exceptions
     def upload(self):
         path = self.get_selection()[0]
         files = filedialog.askopenfilenames()
@@ -201,6 +243,7 @@ class TreeWidget(tk.Frame):
 
         self.process_directory(path, path)
 
+    @handle_catalog_exceptions
     def upload_directory(self):
         path = self.get_selection()[0]
         directory = filedialog.askdirectory()
@@ -214,6 +257,7 @@ class TreeWidget(tk.Frame):
 
         self.process_directory(path, path)
 
+    @handle_catalog_exceptions
     def delete(self):
         selection = self.get_selection()
 
@@ -234,6 +278,7 @@ class TreeWidget(tk.Frame):
         for parent in parents:
             self.process_directory(parent, parent)
 
+    @handle_catalog_exceptions
     def mkdir(self):
         parent = self.get_selection()[0]
         name = simpledialog.askstring('Create new directory',
