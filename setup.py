@@ -36,6 +36,7 @@ setup(name='brocoli',
         'Programming Language :: Python :: 3.5',
         'Programming Language :: Python :: 3.6',
         'Operating System :: POSIX :: Linux',
+        'Topic :: Desktop Environment :: File Managers',
       ],
       install_requires=[
       'six>=1.10.0',

@@ -64,6 +64,10 @@ def application(cfg, connection_name, path):
     Executes the Brocoli application
     """
 
+    def set_display_columns(app, cfg):
+        dcols = cfg[config.SETTINGS]['display_columns'].split(',')
+        app.set_display_columns(dcols)
+
     def new_connection():
         dialog = preferences.ConnectionConfigDialog(root)
 
@@ -77,8 +81,10 @@ def application(cfg, connection_name, path):
     def open_preferences():
         prefs = preferences.Preferences(root)
         if prefs.changed:
-            ss.cfg = prefs.connection_manager.cfg
+            ss.cfg = prefs.cfg
             ss.populate()
+
+            set_display_columns(app, prefs.cfg)
 
     # run Tk
     root = tk.Tk()
@@ -99,6 +105,8 @@ def application(cfg, connection_name, path):
 
     # main window tree view, populate connection menu
     app = TreeWidget(root, cat, path=path or root_path)
+
+    set_display_columns(app, config.load_config())
 
     connection_menu.add_command(label="New connection", command=new_connection)
 
