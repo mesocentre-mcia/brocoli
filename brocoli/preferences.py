@@ -41,7 +41,9 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         self.name.grid(row=0, column=1, sticky='ew')
         self.name.insert(0, self.connection_name)
 
-        self.catalog_cbox = ttk.Combobox(master, values=config.catalog_types)
+        self.catalog_cbox = ttk.Combobox(master, state='readonly',
+                                         values=config.catalog_types + [])
+
         self.catalog_cbox.grid(row=1, column=1, sticky='ew')
         self.catalog_cbox.set(self.catalog_type)
 
