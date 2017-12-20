@@ -12,6 +12,8 @@ from six.moves import tkinter_tksimpledialog as simpledialog
 from six.moves import tkinter_ttk as ttk
 from six.moves import tkinter_messagebox as messagebox
 
+import collections
+
 
 def handle_catalog_exceptions(method):
     """
@@ -36,6 +38,13 @@ def handle_catalog_exceptions(method):
     return method_wrapper
 
 
+class ColumnDef(object):
+    def __init__(self, name, text, anchor = 'w'):
+        self.name = name
+        self.text = text
+        self.anchor = anchor
+
+
 class TreeWidget(tk.Frame):
     """
     The main Brocoli widget displaying Catalog directory contents inside a
@@ -49,23 +58,35 @@ class TreeWidget(tk.Frame):
     __context_menu_delete = 'Delete'
     __context_menu_mkdir = 'New directory'
 
+    columns_def = collections.OrderedDict([
+        ('#0', ColumnDef('#0', 'path')),
+        ('user', ColumnDef('user', 'owner')),
+        ('size', ColumnDef('size', 'size')),
+        ('nreplicas', ColumnDef('nreplicas', '# of replicas')),
+        ('mtime', ColumnDef('mtime', 'modification time')),
+    ])
+
     def __init__(self, master, catalog, path):
         tk.Frame.__init__(self, master)
 
         self.master = master
 
-        self.tree = ttk.Treeview(self, columns=('owner', 'size',
-                                                'modification time'))
+        self.columns = [
+            'user',
+            'size',
+            'nreplicas',
+            'mtime',
+        ]
+
+        self.tree = ttk.Treeview(self, columns=self.columns)
 
         ysb = ttk.Scrollbar(self, orient='vertical', command=self.tree.yview)
         xsb = ttk.Scrollbar(self, orient='horizontal', command=self.tree.xview)
         self.tree.configure(yscroll=ysb.set, xscroll=xsb.set)
 
-        self.tree.heading('#0', text='path', anchor='w')
-        self.tree.heading('owner', text='owner', anchor='w')
-        self.tree.heading('size', text='size', anchor='w')
-        self.tree.heading('modification time', text='modification time',
-                          anchor='w')
+        for c in ['#0'] + self.columns:
+            cd = self.columns_def[c]
+            self.tree.heading(c, text=cd.text, anchor=cd.anchor)
 
         self.tree.bind('<<TreeviewOpen>>', self.open_cb)
 
@@ -81,12 +102,18 @@ class TreeWidget(tk.Frame):
 
         self.set_connection(catalog, path)
 
+    def get_display_columns(self):
+        return self.tree.config(cnf='displaycolumns')[-1]
+
+    def set_display_columns(self, columns):
+        self.tree.config(displaycolumns=columns)
+
     def set_connection(self, catalog_factory, path):
         try:
             catalog = catalog_factory(self)
 
             st = catalog.lstat(path)
-            values = [st['user'], st['size'], st['mtime']]
+            values = [st[k] for k in self.columns]
         except IOError as e:
             if e.errno == exceptions.errno.ENOENT:
                 messagebox.showerror('Connection error',
@@ -272,7 +299,7 @@ class TreeWidget(tk.Frame):
                 msg_list.append('{} files'.format(len(files)))
             if len(directories) > 0:
                 msg_list.append('{} directories'.format(len(directories)))
-            msg += ' and '.join(msg_list)
+            msg += ' and '.join(msg_list) + '?'
             if not messagebox.askokcancel('Confirm Delete', msg):
                 return
 
@@ -323,7 +350,8 @@ class TreeWidget(tk.Frame):
             abspath = self.catalog.join(path, p)
             isdir = self.catalog.isdir(abspath)
             st = self.catalog.lstat(abspath)
-            values = [st['user'], st['size'], st['mtime']]
+
+            values = [st[k] for k in self.columns]
             oid = self.tree.insert(parent, 'end', iid=abspath, text=p,
                                    open=False, values=values)
 

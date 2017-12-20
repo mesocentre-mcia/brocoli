@@ -21,6 +21,7 @@ catalog_dict = {
 
 catalog_types = list(catalog_dict.keys())
 
+SETTINGS = 'SETTINGS'
 
 class Config(collections.OrderedDict):
     """
@@ -28,7 +29,7 @@ class Config(collections.OrderedDict):
     """
 
     def connection(self, name=None):
-        name = name or self['SETTINGS']['default_connection']
+        name = name or self[SETTINGS]['default_connection']
 
         conn = self['connection:' + name]
 
@@ -49,8 +50,8 @@ def bootstrap_config_parser(config):
     """
     Fills ConfigParser object with minimal values
     """
-    config.add_section('SETTINGS')
-    config.set('SETTINGS', 'default_connection', 'default')
+    config.add_section(SETTINGS)
+    config.set(SETTINGS, 'default_connection', 'default')
     config.add_section('connection:default')
     config.set('connection:default', 'catalog_type', 'os')
     config.set('connection:default', 'root_path', tempfile.gettempdir())

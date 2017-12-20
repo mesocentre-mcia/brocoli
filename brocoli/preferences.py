@@ -13,6 +13,8 @@ import collections
 
 from . import config
 from . import form
+from . treewidget import TreeWidget
+
 
 class ConnectionConfigDialog(tksimpledialog.Dialog, object):
     """
@@ -51,14 +53,15 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         self.isdefault_var.set(self.isdefault)
         self.set_default = tk.Checkbutton(master,
                                           text='make default connection',
-                                          variable = self.isdefault_var)
+                                          variable=self.isdefault_var)
         self.set_default.grid(row=3, column=1)
 
         self.catalog_config_frame = tk.Frame(master)
         self.catalog_config_frame.grid(row=4, sticky='nsew')
 
         self.catalog_type_changed(catalog_config=self.catalog_config)
-        self.catalog_cbox.bind('<<ComboboxSelected>>', self.catalog_type_changed)
+        self.catalog_cbox.bind('<<ComboboxSelected>>',
+                               self.catalog_type_changed)
 
         self.result = None
 
@@ -86,7 +89,7 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         del new_conn['name']
 
         if new_conn['set_default']:
-            config['SETTINGS'] = {'default_connection': name}
+            config[config.SETTINGS] = {'default_connection': name}
         del new_conn['set_default']
 
         config['connection:' + name] = new_conn
@@ -113,14 +116,11 @@ class ConnectionManager(tk.Frame):
     """
     Displays connections and allows to add, remove and edit them
     """
-    def __init__(self, master, config_filename):
+    def __init__(self, master, cfg):
         tk.Frame.__init__(self, master)
 
         self.master = master
-        self.config_filename = config_filename
-
-        self.cfg = config.load_config(self.config_filename)
-        self.old_cfg = copy.deepcopy(self.cfg)
+        self.cfg = cfg
 
         columns = ('catalog type', 'path', 'default connection')
         self.tree = ttk.Treeview(self, columns=columns,  selectmode='browse')
@@ -159,7 +159,7 @@ class ConnectionManager(tk.Frame):
         self.tree.bind('<<TreeviewSelect>>', self.selchanged)
 
     def insert_connections(self):
-        default = self.cfg['SETTINGS']['default_connection']
+        default = self.cfg[config.SETTINGS]['default_connection']
 
         for child in self.tree.get_children():
             self.tree.delete(child)
@@ -174,7 +174,6 @@ class ConnectionManager(tk.Frame):
             root_node = self.tree.insert('', 'end', iid=section, text=name,
                                          open=True, values=values)
 
-
     def add(self):
         n = ConnectionConfigDialog(self)
         new = n.result
@@ -185,7 +184,7 @@ class ConnectionManager(tk.Frame):
         del new['name']
 
         if new['set_default']:
-            self.cfg['SETTINGS']['default_connection'] = name
+            self.cfg[config.SETTINGS]['default_connection'] = name
         del new['set_default']
 
         self.cfg['connection:' + name] = new
@@ -198,14 +197,14 @@ class ConnectionManager(tk.Frame):
         del self.cfg[selected]
 
         if selected == ('connection:' +
-                        self.cfg['SETTINGS']['default_connection']):
+                        self.cfg[config.SETTINGS]['default_connection']):
             connections = [c.rsplit(':', 1)[1] for c in self.cfg
                            if c.startswith('connection:')]
             new_default = None
             if connections:
                 new_default = connections[0]
 
-            self.cfg['SETTINGS']['default_connection'] = new_default
+            self.cfg[config.SETTINGS]['default_connection'] = new_default
 
         self.insert_connections()
 
@@ -220,8 +219,9 @@ class ConnectionManager(tk.Frame):
         else:
             isdefault = 1
 
-        n = ConnectionConfigDialog(self, name, catalog_type, root_path, isdefault,
-                                catalog_config=self.cfg['connection:' + name])
+        cname = self.cfg['connection:' + name]
+        n = ConnectionConfigDialog(self, name, catalog_type, root_path,
+                                   isdefault, catalog_config=cname)
         new = n.result
         if new is None:
             return
@@ -232,8 +232,8 @@ class ConnectionManager(tk.Frame):
             del self.cfg['connection:' + name]
 
         if new['set_default']:
-            self.cfg['SETTINGS']['default_connection'] = new_name
-        elif self.cfg['SETTINGS']['default_connection'] == name:
+            self.cfg[config.SETTINGS]['default_connection'] = new_name
+        elif self.cfg[config.config.SETTINGS]['default_connection'] == name:
             connections = [c.rsplit(':', 1)[1] for c in self.cfg
                            if c.startswith('connection:')]
             new_default = None
@@ -256,17 +256,67 @@ class ConnectionManager(tk.Frame):
             for b in buts:
                 b.config(state=tk.DISABLED)
 
+
+class ColumnManager(tk.Frame):
+    def __init__(self, master, cfg, columns_def):
+        tk.Frame.__init__(self, master)
+
+        self.cfg = cfg
+        self.columns_def = columns_def
+
+        if 'display_columns' not in self.cfg[config.SETTINGS]:
+            dcols = [k for k in self.columns_def.keys() if k != '#0']
+            self.cfg[config.SETTINGS]['display_columns'] = ','.join(dcols)
+
+        displayed = self.cfg[config.SETTINGS]['display_columns'].split(',')
+
+        self.columns = {}
+
+        j = 0
+        for k, cd in self.columns_def.items():
+            if k == "#0":
+                continue
+
+            v = tk.BooleanVar()
+            v.set(k in displayed)
+            b = tk.Checkbutton(self, text=cd.name, variable=v,
+                               command=self.button_pressed)
+            self.columns[k] = v
+            b.grid(row=0, column=j)
+
+            j += 1
+
+    def button_pressed(self):
+        # build a list of displayed columns in the columns_def order
+        displayed = [k for k in self.columns_def if k != '#0' and
+                     self.columns[k].get()]
+
+        self.cfg[config.SETTINGS]['display_columns'] = ','.join(displayed)
+
+
 class Preferences(tksimpledialog.Dialog):
     """
     Preferences dialog
     """
     def body(self, master):
-        self.connection_manager = ConnectionManager(master, None)
+        self.cfg = config.load_config()
+        self.old_cfg = copy.deepcopy(self.cfg)
+
+        self.notebook = ttk.Notebook(master)
+        self.notebook.pack()
+
+        self.connection_manager = ConnectionManager(self.notebook, self.cfg)
         self.connection_manager.grid(row=0)
+
+        self.notebook.add(self.connection_manager, text='Connections')
+
+        self.column_manager = ColumnManager(self.notebook, self.cfg,
+                                            TreeWidget.columns_def)
+        self.notebook.add(self.column_manager, text='Display')
 
         self.changed = False
 
     def apply(self):
-        if self.connection_manager.cfg != self.connection_manager.old_cfg:
-            config.save_config(self.connection_manager.cfg, update=False)
+        if self.cfg != self.old_cfg:
+            config.save_config(self.cfg, update=False)
             self.changed = True

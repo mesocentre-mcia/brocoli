@@ -93,11 +93,15 @@ class OSCatalog(Catalog):
     def lstat(self, path):
         stats = os.lstat(path)
 
-        ret = {}
-
-        ret['user'] = stats.st_uid
-        ret['size'] = stats.st_size
-        ret['mtime'] = datetime.fromtimestamp(stats.st_mtime)
+        nreplicas = '1'
+        if self.isdir(path):
+            nreplicas = ''
+        ret = {
+            'user': stats.st_uid,
+            'size': stats.st_size,
+            'mtime': datetime.fromtimestamp(stats.st_mtime),
+            'nreplicas': nreplicas,
+        }
 
         return ret
 
