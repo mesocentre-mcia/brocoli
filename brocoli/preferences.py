@@ -40,6 +40,7 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         self.name = ttk.Entry(master)
         self.name.grid(row=0, column=1, sticky='ew')
         self.name.insert(0, self.connection_name)
+        self.name.focus_set()
 
         self.catalog_cbox = ttk.Combobox(master, state='readonly',
                                          values=config.catalog_types + [])
@@ -110,7 +111,8 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         master = self.catalog_config_frame.master
         self.catalog_config_frame.grid_remove()
         self.catalog_config_frame = form.FormFrame(master)
-        self.catalog_config_frame.grid_fields(self.config_fields.values())
+        self.catalog_config_frame.grid_fields(self.config_fields.values(),
+                                              False)
         self.catalog_config_frame.grid(row=4, columnspan=2, sticky='nsew')
 
 

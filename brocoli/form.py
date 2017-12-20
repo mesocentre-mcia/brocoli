@@ -297,7 +297,7 @@ class FormFrame(tk.Frame, object):
         self.enablers = {}
         self.tag_dict = {}
 
-    def grid_fields(self, fieldlist):
+    def grid_fields(self, fieldlist, focus_first=True):
         disablers = {}
         enablers = {}
         tag_dict = {}
@@ -321,6 +321,8 @@ class FormFrame(tk.Frame, object):
 
                 w.grid(row=i, column=j)
                 j += 1
+            if i == 0 and focus_first:
+                widgets[-1].focus_set()
             i += 1
 
         self.disablers.update(disablers)
