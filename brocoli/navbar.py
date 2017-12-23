@@ -38,6 +38,7 @@ class NavigationBar(tk.Frame):
         self.path_entry = HistoryCombobox(self, initial_path)
         self.path_entry.grid(row=0, sticky='ew')
         self.path_entry.bind('<Return>', self.path_changed)
+        self.path_entry.bind('<<ComboboxSelected>>', self.path_changed)
 
         self.columnconfigure(0, weight=1)
 
