@@ -237,7 +237,7 @@ class ConnectionManager(tk.Frame):
 
         if new['set_default']:
             self.cfg[config.SETTINGS]['default_connection'] = new_name
-        elif self.cfg[config.config.SETTINGS]['default_connection'] == name:
+        elif self.cfg[config.SETTINGS]['default_connection'] == name:
             connections = [c.rsplit(':', 1)[1] for c in self.cfg
                            if c.startswith('connection:')]
             new_default = None
