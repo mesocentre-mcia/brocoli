@@ -97,10 +97,11 @@ class TreeWidget(tk.Frame):
             'mtime',
         ]
 
-        self.navigation_bar = navbar.NavigationBar(self, self.root_path)
-        self.navigation_bar.grid(row=0, columnspan=2, sticky='ew')
-        self.navigation_bar.change_path_cb = self.set_path
+        self.navigation_bar = navbar.NavigationBar(self, self.root_path,
+                                                   self.set_path)
+        self.navigation_bar.refresh_but.config(command=self.refresh)
 
+        self.navigation_bar.grid(row=0, columnspan=2, sticky='ew')
 
         self.tree = ttk.Treeview(self, columns=self.columns)
 
@@ -179,12 +180,17 @@ class TreeWidget(tk.Frame):
 
         self.navigation_bar.set_path(self.path, clear_history)
 
+        self.refresh()
+
+        return True, self.path
+
+    def refresh(self):
+        print_('refresh', self.path)
+
         for child in self.tree.get_children():
             self.tree.delete(child)
 
         self.process_directory('', self.path)
-
-        return True, self.path
 
     def _set_context_menu(self):
         self.context_menu = tk.Menu(self.tree, tearoff=False)

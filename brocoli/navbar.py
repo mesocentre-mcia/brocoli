@@ -35,12 +35,15 @@ class NavigationBar(tk.Frame):
 
         self.change_path_cb = change_path_cb
 
+        self.refresh_but = tk.Button(self, text='Refresh')
+        self.refresh_but.grid(row=0, sticky='w')
+
         self.path_entry = HistoryCombobox(self, initial_path)
-        self.path_entry.grid(row=0, sticky='ew')
+        self.path_entry.grid(row=0, column=1, sticky='ew')
         self.path_entry.bind('<Return>', self.path_changed)
         self.path_entry.bind('<<ComboboxSelected>>', self.path_changed)
 
-        self.columnconfigure(0, weight=1)
+        self.columnconfigure(1, weight=1)
 
     def get_path(self):
         return self.path_entry.get()
