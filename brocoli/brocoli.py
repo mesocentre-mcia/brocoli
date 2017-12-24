@@ -105,7 +105,10 @@ class BrocoliApplication(object):
         self.root.mainloop()
 
     def set_display_columns(self):
-        dcols = self.cfg[config.SETTINGS]['display_columns'].split(',')
+        dcols = self.cfg[config.SETTINGS].get('display_columns', None)
+        if dcols is not None:
+            dcols = dcols.split(',')
+
         self.tree_widget.set_display_columns(dcols)
 
     def new_connection(self):
