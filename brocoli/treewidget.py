@@ -128,6 +128,9 @@ class TreeWidget(tk.Frame):
         return self.tree.config(cnf='displaycolumns')[-1]
 
     def set_display_columns(self, columns):
+        if columns is None:
+            columns = list(self.columns)
+
         self.tree.config(displaycolumns=columns)
 
     def set_connection(self, catalog_factory, path):
