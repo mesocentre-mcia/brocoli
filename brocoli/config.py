@@ -23,6 +23,7 @@ catalog_types = list(catalog_dict.keys())
 
 SETTINGS = 'SETTINGS'
 
+
 class Config(collections.OrderedDict):
     """
     Holds the brocoli configuration loaded from the config file

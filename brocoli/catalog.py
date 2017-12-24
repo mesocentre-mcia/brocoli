@@ -35,6 +35,27 @@ class Catalog(object):
         """
         raise NotImplementedError
 
+    def splitname(self, path):
+        """
+        Performs the equivalent of os.path.split() in the context of the
+        Catalog object.
+        """
+        raise NotImplementedError
+
+    def dirname(self, path):
+        """
+        Performs the equivalent of os.path.dirname() in the context of the
+        Catalog object.
+        """
+        raise NotImplementedError
+
+    def basename(self, path):
+        """
+        Performs the equivalent of os.path.basename() in the context of the
+        Catalog object.
+        """
+        raise NotImplementedError
+
     def download_files(self, pathlist, destdir):
         """
         Downloads files from the catalog pathlist to local destdir.
@@ -113,6 +134,15 @@ class OSCatalog(Catalog):
 
     def join(self, *args):
         return os.path.join(*args)
+
+    def splitname(self, path):
+        return os.path.split(path)
+
+    def dirname(self, path):
+        return os.path.dirname(path)
+
+    def basename(self, path):
+        return os.path.basename(path)
 
     def download_files(self, pathlist, destdir):
         number = len(pathlist)

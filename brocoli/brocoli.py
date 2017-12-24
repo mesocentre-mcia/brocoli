@@ -24,21 +24,19 @@ class ConnectionSwitcher:
     """
     Provides a method that can be used to switch to a particular connection
     """
-    def __init__(self, cfg, app, conn_name):
-        self.cfg = cfg
+    def __init__(self, app, conn_name):
         self.app = app
         self.conn_name = conn_name
 
     def switch(self):
-        self.app.set_connection(*self.cfg.connection(self.conn_name))
+        self.app.set_connection(self.conn_name)
 
 
 class SwitcherSubmenu:
     """
     A menu containing a list of connections to switch to
     """
-    def __init__(self, cfg, connection_menu, app):
-        self.cfg = cfg
+    def __init__(self, connection_menu, app):
         self.app = app
         self.menu = connection_menu
         self.menu_name = 'Switch connection'
@@ -51,76 +49,86 @@ class SwitcherSubmenu:
 
         switch_menu = tk.Menu(self.menu, tearoff=False)
 
-        for c in self.cfg.connection_names():
-            cs = ConnectionSwitcher(self.cfg, self.app, c)
+        for c in self.app.cfg.connection_names():
+            cs = ConnectionSwitcher(self.app, c)
             switch_menu.add_command(label=c, command=cs.switch)
 
         self.menu.insert_cascade(index, label=self.menu_name,
                                  menu=switch_menu)
 
 
-def application(cfg, connection_name, path):
-    """
-    Executes the Brocoli application
-    """
+class BrocoliApplication(object):
+    def __init__(self, cfg, connection_name):
+        # run Tk
+        self.root = tk.Tk()
 
-    def set_display_columns(app, cfg):
-        dcols = cfg[config.SETTINGS]['display_columns'].split(',')
-        app.set_display_columns(dcols)
+        self.cfg = cfg
 
-    def new_connection():
-        dialog = preferences.ConnectionConfigDialog(root)
+        # get connection
+        self.cat, root_path = cfg.connection(connection_name)
+
+        self.path = root_path
+
+        # create menus
+        self.menubar = tk.Menu(self.root)
+
+        self.connection_menu = tk.Menu(self.menubar, tearoff=False)
+
+        self.menubar.add_cascade(label='Settings', menu=self.connection_menu)
+
+        self.menubar.add_command(label="Quit!", command=self.root.quit)
+
+        self.root.config(menu=self.menubar)
+
+        # main window tree view, populate connection menu
+        self.tree_widget = TreeWidget(self.root, self.path)
+        self.tree_widget.grid(sticky='nsew')
+
+        self.set_display_columns()
+
+        self.connection_menu.add_command(label="New connection",
+                                         command=self.new_connection)
+
+        self.ss = SwitcherSubmenu(self.connection_menu, self)
+        self.ss.populate()
+
+        self.connection_menu.add_command(label="Preferences",
+                                         command=self.open_preferences)
+
+        # layout
+        self.root.rowconfigure(0, weight=1)
+        self.root.columnconfigure(0, weight=1)
+
+        self.set_connection(connection_name)
+
+    def run(self):
+        self.root.mainloop()
+
+    def set_display_columns(self):
+        dcols = self.cfg[config.SETTINGS]['display_columns'].split(',')
+        self.tree_widget.set_display_columns(dcols)
+
+    def new_connection(self):
+        dialog = preferences.ConnectionConfigDialog(self.root)
 
         if dialog.result is None:
             return
 
         config.save_config(dialog.to_config_dict(), update=True)
-        ss.cfg = config.load_config()
-        ss.populate()
+        self.cfg = config.load_config()
+        self.ss.populate()
 
-    def open_preferences():
-        prefs = preferences.Preferences(root)
+    def open_preferences(self):
+        prefs = preferences.Preferences(self.root)
         if prefs.changed:
-            ss.cfg = prefs.cfg
-            ss.populate()
+            self.cfg = prefs.cfg
+            self.ss.populate()
 
-            set_display_columns(app, prefs.cfg)
+            self.set_display_columns()
 
-    # run Tk
-    root = tk.Tk()
-
-    # get connection
-    cat, root_path = cfg.connection(connection_name)
-
-    # create menus
-    menubar = tk.Menu(root)
-
-    connection_menu = tk.Menu(menubar, tearoff=False)
-
-    menubar.add_cascade(label='Settings', menu=connection_menu)
-
-    menubar.add_command(label="Quit!", command=root.quit)
-
-    root.config(menu=menubar)
-
-    # main window tree view, populate connection menu
-    app = TreeWidget(root, cat, path=path or root_path)
-
-    set_display_columns(app, config.load_config())
-
-    connection_menu.add_command(label="New connection", command=new_connection)
-
-    ss = SwitcherSubmenu(cfg, connection_menu, app)
-    ss.populate()
-
-    connection_menu.add_command(label="Preferences", command=open_preferences)
-
-    # layout
-    root.rowconfigure(0, weight=1)
-    root.columnconfigure(0, weight=1)
-
-    # event loop
-    root.mainloop()
+    def set_connection(self, connection_name):
+        conn, path = self.cfg.connection(connection_name)
+        self.tree_widget.set_connection(conn, path)
 
 
 def main():
@@ -130,8 +138,6 @@ def main():
     """
 
     parser = argparse.ArgumentParser(description='Browse catalog')
-    parser.add_argument('path', metavar='PATH', nargs='?', default=None,
-                        help='a path in the catalog')
     parser.add_argument('--connection', metavar='CONNECTION',
                         default=None, help='use [connection:CONNECTION] '
                         'section in configuration file')
@@ -140,7 +146,9 @@ def main():
 
     cfg = config.load_config()
 
-    application(cfg, args.connection, args.path)
+    app = BrocoliApplication(cfg, args.connection)
+
+    app.run()
 
 if __name__ == '__main__':
     main()
