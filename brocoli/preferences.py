@@ -210,6 +210,8 @@ class ConnectionManager(tk.Frame):
 
             self.cfg[config.SETTINGS]['default_connection'] = new_default
 
+        self.tree.selection_set('')
+
         self.insert_connections()
 
     def edit(self):
