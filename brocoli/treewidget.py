@@ -66,7 +66,7 @@ class TreeWidget(tk.Frame):
     __context_menu_delete = 'Delete'
     __context_menu_mkdir = 'New directory'
     __context_menu_goto = 'Go to'
-    __context_menu_properties = 'Path Properties'
+    __context_menu_properties = 'Properties'
 
     columns_def = collections.OrderedDict([
         ('#0', ColumnDef('#0', 'path')),
@@ -443,9 +443,11 @@ class TreeWidget(tk.Frame):
         path = self.item_path(selected)
 
         props = None
-        if len(self.tree.get_children(selected)) > 0:
+        if len(self.tree.get_children(selected)) > 0 or selected != path:
+            # directories have children or their iid is different from their path
             props = self.catalog.directory_properties(path)
         else:
+            # file properties
             props = self.catalog.file_properties(path)
 
         if props is None or len(props) == 0:
@@ -453,10 +455,10 @@ class TreeWidget(tk.Frame):
 
         tl = tk.Toplevel(self.master)
         nb = ttk.Notebook(tl)
-        nb.pack()
+        nb.pack(fill=tk.BOTH, expand=1)
 
         for t, p in props.items():
-            nb.add(p.get_widget(nb), text=t)
+            nb.add(p.get_widget(nb), text=t, sticky='nsew')
 
         tl.wait_window()
 

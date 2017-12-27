@@ -349,6 +349,7 @@ class iRODSCatalog(catalog.Catalog):
         access = self.am.get(obj)
 
         acls = [a.__dict__.copy() for a in access]
+
         for a in acls:
             # build a unique ttk.TreeWidget iid
             a['iid'] = '#'.join([a[t] for t in ['user_name', 'user_zone',
@@ -357,13 +358,24 @@ class iRODSCatalog(catalog.Catalog):
 
         return List(iRODSCatalog.acls_def(), acls)
 
+    def __metadata_from_object(self, obj):
+        metadata = [md.__dict__.copy() for md in obj.metadata.items()]
+
+        for md in metadata:
+            md['iid'] = md['avu_id']
+            md['#0'] = md['name']
+
+        return List(iRODSCatalog.metadata_def(), metadata)
+
     @translate_exceptions
     def directory_properties(self, path):
         co = self.cm.get(path)
         acls_list = self.__acls_from_object(co)
+        metadata_list = self.__metadata_from_object(co)
 
         return collections.OrderedDict([
             ('Permissions', acls_list),
+            ('Metadata', metadata_list),
         ])
 
 
@@ -374,13 +386,16 @@ class iRODSCatalog(catalog.Catalog):
         for r in replicas:
             # set row title for ListManager use
             r['#0'] = r['number']
+
         replicas_list = List(iRODSCatalog.replicas_def(), replicas)
 
         acls_list = self.__acls_from_object(do)
+        metadata_list = self.__metadata_from_object(do)
 
         return collections.OrderedDict([
             ('Replicas', replicas_list),
             ('Permissions', acls_list),
+            ('Metadata', metadata_list),
         ])
 
     @classmethod
@@ -404,7 +419,7 @@ class iRODSCatalog(catalog.Catalog):
     @classmethod
     def acls_def(cls):
         user = ColumnDef('#0', 'User',
-                             form_field=form.TextField('User:', -1))
+                             form_field=form.TextField('User:'))
         zone = ColumnDef('user_zone', 'Zone',
                          form_field=form.TextField('User zone:'))
         type = ColumnDef('access_name', 'Access type',
@@ -412,6 +427,19 @@ class iRODSCatalog(catalog.Catalog):
 
 
         cols = [user, zone, type]
+
+        return collections.OrderedDict([(cd.name, cd) for cd in cols])
+
+    @classmethod
+    def metadata_def(cls):
+        name = ColumnDef('#0', 'Name',
+                             form_field=form.IntegerField('Metadata name:'))
+        value = ColumnDef('value', 'Value',
+                             form_field=form.IntegerField('Metadata value:'))
+        unit = ColumnDef('units', 'Unit',
+                             form_field=form.IntegerField('Metadata unit:'))
+
+        cols = [name, value, unit]
 
         return collections.OrderedDict([(cd.name, cd) for cd in cols])
 
