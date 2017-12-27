@@ -109,8 +109,9 @@ class ListManager(tk.Frame):
         self.items = collections.OrderedDict([(v['#0'], v) for v in rows])
 
         for v in rows:
-            rows = [v[c] for c in self.columns_def if c != '#0']
-            root_node = self.tree.insert('', 'end', iid=v['#0'], text=v['#0'],
+            rows = [v[c] for c in self.columns_def if c != '#0' and c != 'iid']
+            iid = v.get('iid', v['#0'])
+            root_node = self.tree.insert('', 'end', iid=iid, text=v['#0'],
                                          open=True, values=rows)
 
     def add(self):

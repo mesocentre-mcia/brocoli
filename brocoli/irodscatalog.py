@@ -119,6 +119,7 @@ class iRODSCatalog(catalog.Catalog):
 
         self.dom = self.session.data_objects
         self.cm = self.session.collections
+        self.am = self.session.permissions
 
     def splitname(self, path):
         return path.rsplit('/', 1)
@@ -344,11 +345,30 @@ class iRODSCatalog(catalog.Catalog):
     def mkdir(self, path):
         self.cm.create(path)
 
-    @translate_exceptions
-    def path_properties(self, path):
-        if self.isdir(path):
-            return {}
+    def __acls_from_object(self, obj):
+        access = self.am.get(obj)
 
+        acls = [a.__dict__.copy() for a in access]
+        for a in acls:
+            # build a unique ttk.TreeWidget iid
+            a['iid'] = '#'.join([a[t] for t in ['user_name', 'user_zone',
+                                                'access_name']])
+            a['#0'] = a['user_name']
+
+        return List(iRODSCatalog.acls_def(), acls)
+
+    @translate_exceptions
+    def directory_properties(self, path):
+        co = self.cm.get(path)
+        acls_list = self.__acls_from_object(co)
+
+        return collections.OrderedDict([
+            ('Permissions', acls_list),
+        ])
+
+
+    @translate_exceptions
+    def file_properties(self, path):
         do = self.dom.get(path)
         replicas = [r.__dict__.copy() for r in do.replicas]
         for r in replicas:
@@ -356,27 +376,42 @@ class iRODSCatalog(catalog.Catalog):
             r['#0'] = r['number']
         replicas_list = List(iRODSCatalog.replicas_def(), replicas)
 
+        acls_list = self.__acls_from_object(do)
+
         return collections.OrderedDict([
             ('Replicas', replicas_list),
+            ('Permissions', acls_list),
         ])
 
     @classmethod
     def replicas_def(cls):
-        repl_num = ColumnDef('#0', 'number',
-                             form_field=form.IntegerField('Replica number:', -1))
+        repl_num = ColumnDef('#0', 'Number',
+                             form_field=form.IntegerField('Replica number:',
+                                                          -1))
         resc = ColumnDef('resource_name', 'Resource',
                          form_field=form.TextField('Resource name:'))
-
         path = ColumnDef('path', 'Path',
                          form_field=form.TextField('Replica path:'))
-
         status = ColumnDef('status', 'Status',
                            form_field=form.TextField('Replica status:'))
-
         checksum = ColumnDef('checksum', 'Checksum',
                            form_field=form.TextField('Replica checksum:'))
 
         cols = [repl_num, resc, status, checksum, path]
+
+        return collections.OrderedDict([(cd.name, cd) for cd in cols])
+
+    @classmethod
+    def acls_def(cls):
+        user = ColumnDef('#0', 'User',
+                             form_field=form.TextField('User:', -1))
+        zone = ColumnDef('user_zone', 'Zone',
+                         form_field=form.TextField('User zone:'))
+        type = ColumnDef('access_name', 'Access type',
+                         form_field=form.TextField('Acces type:'))
+
+
+        cols = [user, zone, type]
 
         return collections.OrderedDict([(cd.name, cd) for cd in cols])
 

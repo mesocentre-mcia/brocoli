@@ -441,9 +441,14 @@ class TreeWidget(tk.Frame):
     def selected_properties(self):
         selected = self.get_selection()[0]
         path = self.item_path(selected)
-        props = self.catalog.path_properties(path)
 
-        if props is None or len(props) ==0:
+        props = None
+        if len(self.tree.get_children(selected)) > 0:
+            props = self.catalog.directory_properties(path)
+        else:
+            props = self.catalog.file_properties(path)
+
+        if props is None or len(props) == 0:
             return
 
         tl = tk.Toplevel(self.master)
