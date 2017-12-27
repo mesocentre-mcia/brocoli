@@ -3,6 +3,7 @@ from . progress_dialog import progress_from_generator as progress
 from . progress_dialog import unbounded_progress_from_generator as uprogress
 from . import exceptions
 from . import navbar
+from . listmanager import ColumnDef
 
 import six
 from six import print_
@@ -43,13 +44,6 @@ def handle_catalog_exceptions(method):
     return method_wrapper
 
 
-class ColumnDef(object):
-    def __init__(self, name, text, anchor='w'):
-        self.name = name
-        self.text = text
-        self.anchor = anchor
-
-
 class TreeWidget(tk.Frame):
     """
     The main Brocoli widget displaying Catalog directory contents inside a
@@ -72,6 +66,7 @@ class TreeWidget(tk.Frame):
     __context_menu_delete = 'Delete'
     __context_menu_mkdir = 'New directory'
     __context_menu_goto = 'Go to'
+    __context_menu_properties = 'Properties'
 
     columns_def = collections.OrderedDict([
         ('#0', ColumnDef('#0', 'path')),
@@ -230,6 +225,9 @@ class TreeWidget(tk.Frame):
 
         self.context_menu.add_command(label=self.__context_menu_goto,
                                       command=self.goto_selected)
+
+        self.context_menu.add_command(label=self.__context_menu_properties,
+                                      command=self.selected_properties)
 
         self.tree.bind('<Double-Button-1>', self._goto, add='+')
 
@@ -439,6 +437,30 @@ class TreeWidget(tk.Frame):
         path = self.item_path(selected)
         print_(selected, path)
         self.set_path(path)
+
+    def selected_properties(self):
+        selected = self.get_selection()[0]
+        path = self.item_path(selected)
+
+        props = None
+        if len(self.tree.get_children(selected)) > 0 or selected != path:
+            # directories have children or their iid is different from their path
+            props = self.catalog.directory_properties(path)
+        else:
+            # file properties
+            props = self.catalog.file_properties(path)
+
+        if props is None or len(props) == 0:
+            return
+
+        tl = tk.Toplevel(self.master)
+        nb = ttk.Notebook(tl)
+        nb.pack(fill=tk.BOTH, expand=1)
+
+        for t, p in props.items():
+            nb.add(p.get_widget(nb), text=t, sticky='nsew')
+
+        tl.wait_window()
 
     def open_cb(self, event):
         iid = self.tree.focus()

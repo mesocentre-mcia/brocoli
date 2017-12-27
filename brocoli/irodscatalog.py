@@ -5,6 +5,7 @@ Implements iRODS Catalog object and methods
 from . import catalog
 from . import form
 from . import exceptions
+from . listmanager import ColumnDef, List
 
 import re
 import os
@@ -118,6 +119,7 @@ class iRODSCatalog(catalog.Catalog):
 
         self.dom = self.session.data_objects
         self.cm = self.session.collections
+        self.am = self.session.permissions
 
     def splitname(self, path):
         return path.rsplit('/', 1)
@@ -342,6 +344,104 @@ class iRODSCatalog(catalog.Catalog):
     @translate_exceptions
     def mkdir(self, path):
         self.cm.create(path)
+
+    def __acls_from_object(self, obj):
+        access = self.am.get(obj)
+
+        acls = [a.__dict__.copy() for a in access]
+
+        for a in acls:
+            # build a unique ttk.TreeWidget iid
+            a['iid'] = '#'.join([a[t] for t in ['user_name', 'user_zone',
+                                                'access_name']])
+            a['#0'] = a['user_name']
+
+        return List(iRODSCatalog.acls_def(), acls)
+
+    def __metadata_from_object(self, obj):
+        metadata = [md.__dict__.copy() for md in obj.metadata.items()]
+
+        for md in metadata:
+            md['iid'] = md['avu_id']
+            md['#0'] = md['name']
+
+        return List(iRODSCatalog.metadata_def(), metadata)
+
+    @translate_exceptions
+    def directory_properties(self, path):
+        co = self.cm.get(path)
+        acls_list = self.__acls_from_object(co)
+        metadata_list = self.__metadata_from_object(co)
+
+        return collections.OrderedDict([
+            ('Permissions', acls_list),
+            ('Metadata', metadata_list),
+        ])
+
+
+    @translate_exceptions
+    def file_properties(self, path):
+        do = self.dom.get(path)
+        replicas = [r.__dict__.copy() for r in do.replicas]
+        for r in replicas:
+            # set row title for ListManager use
+            r['#0'] = r['number']
+
+        replicas_list = List(iRODSCatalog.replicas_def(), replicas)
+
+        acls_list = self.__acls_from_object(do)
+        metadata_list = self.__metadata_from_object(do)
+
+        return collections.OrderedDict([
+            ('Replicas', replicas_list),
+            ('Permissions', acls_list),
+            ('Metadata', metadata_list),
+        ])
+
+    @classmethod
+    def replicas_def(cls):
+        repl_num = ColumnDef('#0', 'Number',
+                             form_field=form.IntegerField('Replica number:',
+                                                          -1))
+        resc = ColumnDef('resource_name', 'Resource',
+                         form_field=form.TextField('Resource name:'))
+        path = ColumnDef('path', 'Path',
+                         form_field=form.TextField('Replica path:'))
+        status = ColumnDef('status', 'Status',
+                           form_field=form.TextField('Replica status:'))
+        checksum = ColumnDef('checksum', 'Checksum',
+                           form_field=form.TextField('Replica checksum:'))
+
+        cols = [repl_num, resc, status, checksum, path]
+
+        return collections.OrderedDict([(cd.name, cd) for cd in cols])
+
+    @classmethod
+    def acls_def(cls):
+        user = ColumnDef('#0', 'User',
+                             form_field=form.TextField('User:'))
+        zone = ColumnDef('user_zone', 'Zone',
+                         form_field=form.TextField('User zone:'))
+        type = ColumnDef('access_name', 'Access type',
+                         form_field=form.TextField('Acces type:'))
+
+
+        cols = [user, zone, type]
+
+        return collections.OrderedDict([(cd.name, cd) for cd in cols])
+
+    @classmethod
+    def metadata_def(cls):
+        name = ColumnDef('#0', 'Name',
+                             form_field=form.IntegerField('Metadata name:'))
+        value = ColumnDef('value', 'Value',
+                             form_field=form.IntegerField('Metadata value:'))
+        unit = ColumnDef('units', 'Unit',
+                             form_field=form.IntegerField('Metadata unit:'))
+
+        cols = [name, value, unit]
+
+        return collections.OrderedDict([(cd.name, cd) for cd in cols])
 
     @classmethod
     def config_fields(cls):
