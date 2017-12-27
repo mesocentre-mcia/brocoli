@@ -99,6 +99,12 @@ class Catalog(object):
         """
         raise NotImplementedError
 
+    def path_properties(self, path):
+        """
+        Returns a dictionary of properties for path
+        """
+        raise NotImplementedError
+
     @classmethod
     def config_fields(cls):
         """
@@ -204,6 +210,9 @@ class OSCatalog(Catalog):
 
     def mkdir(self, path):
         os.mkdir(path)
+
+    def path_properties(self, path):
+        return {}
 
     @classmethod
     def config_fields(cls):

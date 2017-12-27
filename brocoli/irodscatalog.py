@@ -5,6 +5,7 @@ Implements iRODS Catalog object and methods
 from . import catalog
 from . import form
 from . import exceptions
+from . listmanager import ColumnDef, List
 
 import re
 import os
@@ -342,6 +343,42 @@ class iRODSCatalog(catalog.Catalog):
     @translate_exceptions
     def mkdir(self, path):
         self.cm.create(path)
+
+    @translate_exceptions
+    def path_properties(self, path):
+        if self.isdir(path):
+            return {}
+
+        do = self.dom.get(path)
+        replicas = [r.__dict__.copy() for r in do.replicas]
+        for r in replicas:
+            # set row title for ListManager use
+            r['#0'] = r['number']
+        replicas_list = List(iRODSCatalog.replicas_def(), replicas)
+
+        return collections.OrderedDict([
+            ('Replicas', replicas_list),
+        ])
+
+    @classmethod
+    def replicas_def(cls):
+        repl_num = ColumnDef('#0', 'number',
+                             form_field=form.IntegerField('Replica number:', -1))
+        resc = ColumnDef('resource_name', 'Resource',
+                         form_field=form.TextField('Resource name:'))
+
+        path = ColumnDef('path', 'Path',
+                         form_field=form.TextField('Replica path:'))
+
+        status = ColumnDef('status', 'Status',
+                           form_field=form.TextField('Replica status:'))
+
+        checksum = ColumnDef('checksum', 'Checksum',
+                           form_field=form.TextField('Replica checksum:'))
+
+        cols = [repl_num, resc, status, checksum, path]
+
+        return collections.OrderedDict([(cd.name, cd) for cd in cols])
 
     @classmethod
     def config_fields(cls):
