@@ -20,6 +20,12 @@ class FormField(object):
         self.text = text
         self.tags = tags or []
 
+    def reset(self):
+        '''
+        Resets internal formField state
+        '''
+        raise NotImplementedError
+
     def from_string(self, s):
         """
         Sets field value from argument string
@@ -66,9 +72,13 @@ class TextField(FormField):
         super(TextField, self).__init__(text, tags=tags)
 
         self.var = tk.StringVar()
-        self.var.set(default_value)
+        self.default_value = default_value
+        self.reset()
         self.validate_command = validate_command
         self.password_mode = password_mode
+
+    def reset(self):
+        self.var.set(self.default_value)
 
     def from_string(self, s):
         self.var.set(s)
@@ -163,9 +173,13 @@ class BooleanField(FormField):
 
         self.text = text
         self.var = tk.BooleanVar()
-        self.var.set(default_value)
+        self.default_value = default_value
+        self.reset()
         self.disables_tags = disables_tags or []
         self.enables_tags = enables_tags or []
+
+    def reset(self):
+        self.var.set(self.default_value)
 
     def from_string(self, s):
         self.var.set(s)
@@ -234,11 +248,16 @@ class RadioChoiceField(FormField):
         if default_value is None:
             default_value = values[0]
 
-        self.var.set(default_value)
+        self.default_value = default_value
+        self.reset()
 
         self.side = tk.TOP
         if not vertical:
             self.side = tk.LEFT
+
+    def reset(self):
+        self.var.set(self.default_value)
+
 
     def from_string(self, s):
         self.var.set(s)
@@ -269,7 +288,11 @@ class ComboboxChoiceField(FormField):
         if default_value is None:
             default_value = values[0]
 
-        self.var.set(default_value)
+        self.default_value = default_value
+        self.reset()
+
+    def reset(self):
+        self.var.set(self.default_value)
 
     def from_string(self, s):
         self.var.set(s)
