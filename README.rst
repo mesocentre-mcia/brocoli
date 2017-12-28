@@ -30,13 +30,21 @@ Brocoli depends on the following packages:
 Installing with pip
 ^^^^^^^^^^^^^^^^^^^
 
-Not available yet...
+From a command shell, run:
+
+    ``pip install brocoli [--user]``
+
+If you don't have administrative privileges, you may need to use the ``--user``
+optional argument, in order to install Brocoli in your user account.
 
 Installing from source
 ^^^^^^^^^^^^^^^^^^^^^^
 
 #) Download Brocoli from https://github.com/mesocentre-mcia/brocoli
 #) from distribution directory, run ``python setup.py install [--user]``
+
+If you don't have administrative privileges, you may need to use the ``--user``
+optional argument, in order to install Brocoli in your user account.
 
 Using Brocoli
 -------------
