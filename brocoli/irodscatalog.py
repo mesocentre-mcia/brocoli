@@ -156,7 +156,7 @@ class iRODSCatalog(catalog.Catalog):
     def lstat_file(self, path):
         dirname, basename = self.splitname(path)
         q = self.session.query(DataObject.owner_name, DataObject.size,
-                               DataObject.modify_time)
+                               DataObject.modify_time, DataObject.replica_number)
         q = q.filter(Collection.name == dirname)
         q = q.filter(DataObject.name == basename)
 
@@ -410,7 +410,7 @@ class iRODSCatalog(catalog.Catalog):
         status = ColumnDef('status', 'Status',
                            form_field=form.TextField('Replica status:'))
         checksum = ColumnDef('checksum', 'Checksum',
-                           form_field=form.TextField('Replica checksum:'))
+                             form_field=form.TextField('Replica checksum:'))
 
         cols = [repl_num, resc, status, checksum, path]
 
