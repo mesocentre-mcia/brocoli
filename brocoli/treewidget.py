@@ -130,8 +130,14 @@ class TreeWidget(tk.Frame):
 
     def set_connection(self, catalog_factory, path):
         try:
-            # build catalog and verify root path is valid
+            # build catalog
             catalog = catalog_factory(self)
+
+            if catalog is None:
+                # user must have cancelled something
+                return
+
+            # verify root path is valid
             if not catalog.isdir(path):
                 messagebox.showerror('Path error',
                                      ('Path \'{}\' is not a ' +

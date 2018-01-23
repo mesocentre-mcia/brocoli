@@ -513,6 +513,12 @@ def irods3_catalog_from_config(cfg):
                                            scrambled_password)
     else:
         def ask_password(master):
+            def _do_ok(e=None):
+                tl.destroy()
+            def _do_cancel(e=None):
+                pf.from_string('')
+                tl.destroy()
+
             tl = tk.Toplevel(master)
             tl.transient(master)
 
@@ -522,7 +528,19 @@ def irods3_catalog_from_config(cfg):
             ff.grid_fields([pf])
             ff.pack()
 
+            butbox = tk.Frame(tl)
+            butbox.pack()
+            ok = tk.Button(butbox, text='Ok', command=_do_ok)
+            ok.grid()
+            ok.bind('<Return>', _do_ok)
+            cancel = tk.Button(butbox, text='Cancel', command=_do_cancel)
+            cancel.grid(row=0, column=1)
+            cancel.bind('<Return>', _do_cancel)
+
             tl.wait_window()
+
+            if not pf.to_string():
+                return None
 
             scrambled_password = iRODSCatalog.encode(pf.to_string())
 
