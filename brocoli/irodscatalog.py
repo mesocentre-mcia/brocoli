@@ -9,6 +9,7 @@ from . listmanager import ColumnDef, List
 
 import re
 import os
+import io
 import hashlib
 import collections
 import datetime
@@ -22,6 +23,8 @@ from irods import password_obfuscation
 from irods.manager.data_object_manager import DataObjectManager
 from irods.manager.collection_manager import CollectionManager
 from irods.models import DataObject, Collection
+from irods.manager import data_object_manager
+from irods.data_object import chunks
 import irods.keywords as kw
 import irods.exception
 
@@ -237,7 +240,8 @@ class iRODSCatalog(catalog.Catalog):
     def lstat_file(self, path):
         dirname, basename = self.splitname(path)
         q = self.session.query(DataObject.owner_name, DataObject.size,
-                               DataObject.modify_time, DataObject.replica_number)
+                               DataObject.modify_time,
+                               DataObject.replica_number)
         q = q.filter(Collection.name == dirname)
         q = q.filter(DataObject.name == basename)
 
@@ -340,7 +344,8 @@ class iRODSCatalog(catalog.Catalog):
         def local_file_md5(filename):
             m = hashlib.md5()
             with open(filename, 'rb') as f:
-                m.update(f.read())
+                for chunk in chunks(f, io.DEFAULT_BUFFER_SIZE * 1000):
+                    m.update(chunk)
 
             return m.hexdigest()
 
@@ -362,6 +367,8 @@ class iRODSCatalog(catalog.Catalog):
             print_('put', f, path, irods_path)
 
             options[kw.VERIFY_CHKSUM_KW] = local_file_md5(f)
+
+            print_('md5sum', options[kw.VERIFY_CHKSUM_KW])
 
             self.dom.put(f, irods_path, **options)
 
@@ -466,7 +473,6 @@ class iRODSCatalog(catalog.Catalog):
             ('Metadata', metadata_list),
         ])
 
-
     @translate_exceptions
     def file_properties(self, path):
         do = self.dom.get(path)
@@ -506,13 +512,11 @@ class iRODSCatalog(catalog.Catalog):
 
     @classmethod
     def acls_def(cls):
-        user = ColumnDef('#0', 'User',
-                             form_field=form.TextField('User:'))
+        user = ColumnDef('#0', 'User', form_field=form.TextField('User:'))
         zone = ColumnDef('user_zone', 'Zone',
                          form_field=form.TextField('User zone:'))
         type = ColumnDef('access_name', 'Access type',
                          form_field=form.TextField('Acces type:'))
-
 
         cols = [user, zone, type]
 
@@ -521,11 +525,11 @@ class iRODSCatalog(catalog.Catalog):
     @classmethod
     def metadata_def(cls):
         name = ColumnDef('#0', 'Name',
-                             form_field=form.IntegerField('Metadata name:'))
+                         form_field=form.IntegerField('Metadata name:'))
         value = ColumnDef('value', 'Value',
-                             form_field=form.IntegerField('Metadata value:'))
+                          form_field=form.IntegerField('Metadata value:'))
         unit = ColumnDef('units', 'Unit',
-                             form_field=form.IntegerField('Metadata unit:'))
+                         form_field=form.IntegerField('Metadata unit:'))
 
         cols = [name, value, unit]
 
@@ -607,6 +611,7 @@ def irods3_catalog_from_config(cfg):
         def ask_password(master):
             def _do_ok(e=None):
                 tl.destroy()
+
             def _do_cancel(e=None):
                 pf.from_string('')
                 tl.destroy()
