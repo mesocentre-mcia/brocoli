@@ -349,6 +349,28 @@ class iRODSCatalog(catalog.Catalog):
 
             return m.hexdigest()
 
+        def _put(file, irods_path, **options):
+            # adapted from https://github.com/irods/python-irodsclient
+            # data_object_manager.py#L60
+
+            if irods_path.endswith('/'):
+                obj = irods_path + os.path.basename(file)
+            else:
+                obj = irods_path
+
+            # Set operation type to trigger acPostProcForPut
+            if kw.OPR_TYPE_KW not in options:
+                options[kw.OPR_TYPE_KW] = 1  # PUT_OPR
+
+            with open(file, 'rb') as f, self.dom.open(obj, 'w', **options) as o:
+                for chunk in chunks(f, data_object_manager.WRITE_BUFFER_SIZE):
+                    o.write(chunk)
+                    yield len(chunk)
+
+            if kw.ALL_KW in options:
+                options[kw.UPDATE_REPL_KW] = ''
+                self.dom.replicate(obj, **options)
+
         if not path.endswith('/'):
             path = path + '/'
 
@@ -366,13 +388,16 @@ class iRODSCatalog(catalog.Catalog):
             irods_path = path + basename
             print_('put', f, path, irods_path)
 
+            if os.stat(f).st_size > data_object_manager.READ_BUFFER_SIZE:
+                # wake up progress bar before checksum for large files
+                yield 0
+
             options[kw.VERIFY_CHKSUM_KW] = local_file_md5(f)
 
             print_('md5sum', options[kw.VERIFY_CHKSUM_KW])
 
-            self.dom.put(f, irods_path, **options)
-
-            yield os.path.getsize(f)
+            for y in _put(f, irods_path, **options):
+                yield y
 
     def _upload_dir(self, dir_, path):
         files = []
