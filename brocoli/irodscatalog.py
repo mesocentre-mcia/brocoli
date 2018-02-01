@@ -109,13 +109,16 @@ class iRODSCatalog(catalog.Catalog):
     def decode(cls, s):
         return password_obfuscation.decode(s, _getuid())
 
-    def __init__(self, host, port, user, zone, scrambled_password):
+    def __init__(self, host, port, user, zone, scrambled_password,
+                 default_resc):
         try:
             password = iRODSCatalog.decode(scrambled_password)
             self.session = iRODSSession(host=host, port=port, user=user,
                                         password=password, zone=zone)
         except irods.exception.CAT_INVALID_AUTHENTICATION as e:
             raise exceptions.ConnectionError(e)
+
+        self.default_resc = default_resc
 
         self.dom = self.session.data_objects
         self.cm = self.session.collections
@@ -267,6 +270,9 @@ class iRODSCatalog(catalog.Catalog):
             kw.ALL_KW: '',
             kw.UPDATE_REPL_KW: '',
         }
+
+        if self.default_resc is not None:
+            options[kw.DEST_RESC_NAME_KW] = self.default_resc
 
         for f in files:
             basename = os.path.basename(f)
@@ -462,6 +468,7 @@ class iRODSCatalog(catalog.Catalog):
                                             encode=cls.encode,
                                             decode=cls.decode,
                                             tags=tags + ['password'])),
+            ('default_resc', form.TextField('Default resource:', tags=tags)),
         ])
 
 
@@ -477,11 +484,13 @@ def irods3_catalog_from_envfile(envfile):
     user = env3['irodsUserName']
     zone = env3['irodsZone']
     pwdfile = env3['irodsAuthFileName']
+    default_resc = env3.get('irodsDefResource', None)
 
     with open(pwdfile, 'r') as f:
         scrambled_password = f.read().strip()
 
-    return iRODSCatalog(host, port, user, zone, scrambled_password)
+    return iRODSCatalog(host, port, user, zone, scrambled_password,
+                        default_resc)
 
 
 def irods3_catalog_from_config(cfg):
@@ -505,12 +514,13 @@ def irods3_catalog_from_config(cfg):
     port = cfg['port']
     user = cfg['user_name']
     zone = cfg['zone']
+    default_resc = cfg.get('default_resc', None)
     store_password = cfg['store_password']
     scrambled_password = None
     if store_password.lower() in ['1', 'yes', 'on', 'true']:
         scrambled_password = cfg['password']
         return lambda master: iRODSCatalog(host, port, user, zone,
-                                           scrambled_password)
+                                           scrambled_password, default_resc)
     else:
         def ask_password(master):
             def _do_ok(e=None):
@@ -544,6 +554,7 @@ def irods3_catalog_from_config(cfg):
 
             scrambled_password = iRODSCatalog.encode(pf.to_string())
 
-            return iRODSCatalog(host, port, user, zone, scrambled_password)
+            return iRODSCatalog(host, port, user, zone, scrambled_password,
+                                default_resc)
 
         return ask_password
