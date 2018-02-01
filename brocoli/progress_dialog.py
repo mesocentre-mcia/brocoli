@@ -12,6 +12,7 @@ class UnboundedProgressDialog:
     """
     def __init__(self, parent, opname, **kwargs):
         self.toplevel = tk.Toplevel(parent, **kwargs)
+        self.toplevel.title(opname)
         self.toplevel.transient(parent)
 
         self.opname = opname
@@ -38,6 +39,7 @@ class ProgressDialog:
     def __init__(self, parent, opname, **kwargs):
         self.maximum = 100
         self.toplevel = tk.Toplevel(parent, **kwargs)
+        self.toplevel.title(opname)
         self.toplevel.transient(parent)
 
         self.opname = opname
