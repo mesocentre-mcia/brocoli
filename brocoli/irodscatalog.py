@@ -25,6 +25,7 @@ from irods.manager.collection_manager import CollectionManager
 from irods.models import DataObject, Collection
 from irods.manager import data_object_manager
 from irods.data_object import chunks
+from irods.column import Like
 import irods.keywords as kw
 import irods.exception
 
@@ -56,7 +57,7 @@ def parse_env3(path):
     return ret
 
 
-def local_tree_stats(dirs):
+def local_trees_stats(dirs):
     """
     Gathers stats (number of files and cumulated size) of sub-trees on a local
     directories list
@@ -297,16 +298,79 @@ class iRODSCatalog(catalog.Catalog):
     def join(self, *args):
         return '/'.join(args)
 
+    def remote_files_stats(self, file_paths):
+        dirs = {self.dirname(p) for p in file_paths}
+
+        stats = {}
+        for d in dirs:
+            q = self.session.query(DataObject.name, DataObject.size)
+            q = q.filter(Collection.name == d)
+
+            for r in q.get_results():
+                stats[self.join(d, r[DataObject.name])] = int(r[DataObject.size])
+
+        return len(file_paths), sum([v for k, v in stats.items() if k in file_paths])
+
+    def remote_trees_stats(self, dirs):
+        nfiles = 0
+        size = 0
+
+        for d in dirs:
+            # need to keep column 'collection_id' to avoid 'distinct' clause on
+            #recursive queries
+            q = self.session.query(DataObject.collection_id, DataObject.name,
+                                   DataObject.size)
+
+            # first level query
+            q1 = q.filter(Collection.name == d)
+            for r in q1.get_results():
+                nfiles += 1
+                size += int(r[DataObject.size])
+
+            # recursive query
+            qr = q.filter(Like(Collection.name, self.join(d, '%')))
+            for r in qr.get_results():
+                nfiles += 1
+                size += int(r[DataObject.size])
+
+        return nfiles, size
+
     @translate_exceptions
     def download_files(self, pathlist, destdir):
+        nfiles, size = self.remote_files_stats(pathlist)
+
+        if nfiles > 1 or size > data_object_manager.READ_BUFFER_SIZE:
+            # wake up progress bar for more than one file or one large file
+            yield 0, size
+
+        completed = 0
+        for y in self._download_files(pathlist, destdir):
+            completed += y
+            yield completed, size
+
+    def _download_files(self, pathlist, destdir):
+        def _download(obj, local_path, **options):
+            # adapted from https://github.com/irods/python-irodsclient
+            # data_object_manager.py#L29
+
+            file = os.path.join(local_path, self.basename(obj))
+
+            # Check for force flag if file exists
+            if os.path.exists(file) and kw.FORCE_FLAG_KW not in options:
+                raise ex.OVERWRITE_WITHOUT_FORCE_FLAG
+
+            with open(file, 'wb') as f, self.dom.open(obj, 'r', **options) as o:
+                for chunk in chunks(o, data_object_manager.READ_BUFFER_SIZE):
+                    f.write(chunk)
+                    yield len(chunk)
+
         options = {kw.FORCE_FLAG_KW: ''}
 
-        number = len(pathlist)
-        i = 0
         for p in pathlist:
-            self.dom._download(p, destdir, **options)
-            i += 1
-            yield i, number
+            print_('get', p, destdir)
+
+            for y in _download(p, destdir, **options):
+                yield y
 
     def _download_coll(self, coll, destdir):
         destdir = os.path.join(destdir, coll.name)
@@ -317,7 +381,7 @@ class iRODSCatalog(catalog.Catalog):
                 raise
 
         pathlist = [dobj.path for dobj in list(coll.data_objects)]
-        for y in self.download_files(pathlist, destdir):
+        for y in self._download_files(pathlist, destdir):
             yield y
 
         for subcoll in coll.subcollections:
@@ -326,10 +390,14 @@ class iRODSCatalog(catalog.Catalog):
 
     @translate_exceptions
     def download_directories(self, pathlist, destdir):
+        nfiles, size = self.remote_trees_stats(pathlist)
+
+        completed = 0
         for p in pathlist:
             coll = self.cm.get(p)
             for y in self._download_coll(coll, destdir):
-                yield y
+                completed += y
+                yield completed, size
 
     @translate_exceptions
     def upload_files(self, files, path):
@@ -425,7 +493,7 @@ class iRODSCatalog(catalog.Catalog):
 
     @translate_exceptions
     def upload_directories(self, dirs, path):
-        nfiles, size = local_tree_stats(dirs)
+        nfiles, size = local_trees_stats(dirs)
 
         completed = 0
         for d in dirs:

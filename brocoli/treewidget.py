@@ -354,9 +354,9 @@ class TreeWidget(tk.Frame):
                      self.catalog.download_files(files, destdir))
 
         if directories:
-            uprogress(self.master,
-                      'download {} directories'.format(len(directories)),
-                      self.catalog.download_directories(directories, destdir))
+            progress(self.master,
+                     'download {} directories'.format(len(directories)),
+                     self.catalog.download_directories(directories, destdir))
 
     @handle_catalog_exceptions
     def upload(self):
