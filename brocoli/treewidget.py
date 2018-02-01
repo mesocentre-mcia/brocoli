@@ -135,30 +135,32 @@ class TreeWidget(tk.Frame):
 
             if catalog is None:
                 # user must have cancelled something
-                return
+                return False
 
             # verify root path is valid
             if not catalog.isdir(path):
                 messagebox.showerror('Path error',
                                      ('Path \'{}\' is not a ' +
                                       'directory').format(path))
-                return
+                return False
         except IOError as e:
             if e.errno == exceptions.errno.ENOENT:
                 messagebox.showerror('Connection error',
                                      ('Connection root path \'{}\' does ' +
                                       'not exist on catalog').format(path))
-                return
+                return False
         except exceptions.ConnectionError as e:
             messagebox.showerror('Connection error',
                                  ('Connection failed with error: ' +
                                   '{}').format(str(e)))
-            return
+            return False
 
         self.catalog = catalog
         self.root_path = path
 
         self.set_path(path, clear_history=True)
+
+        return True
 
     def set_path(self, path, clear_history=False):
         if path == self.path:
@@ -449,17 +451,22 @@ class TreeWidget(tk.Frame):
         path = self.item_path(selected)
 
         props = None
+        entry_type = ''
         if len(self.tree.get_children(selected)) > 0 or selected != path:
             # directories have children or their iid is different from their path
             props = self.catalog.directory_properties(path)
+            entry_type = 'Directory'
         else:
             # file properties
             props = self.catalog.file_properties(path)
+            entry_type = 'File'
 
         if props is None or len(props) == 0:
             return
 
         tl = tk.Toplevel(self.master)
+        tl.title(entry_type + ' properties: ' + path)
+
         nb = ttk.Notebook(tl)
         nb.pack(fill=tk.BOTH, expand=1)
 

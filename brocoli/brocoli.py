@@ -131,7 +131,8 @@ class BrocoliApplication(object):
 
     def set_connection(self, connection_name):
         conn, path = self.cfg.connection(connection_name)
-        self.tree_widget.set_connection(conn, path)
+        if self.tree_widget.set_connection(conn, path):
+            self.root.title('Brocoli - ' + (connection_name or self.cfg.default_connection_name()))
 
 
 def main():

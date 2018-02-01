@@ -530,10 +530,11 @@ def irods3_catalog_from_config(cfg):
                 tl.destroy()
 
             tl = tk.Toplevel(master)
+            tl.title('iRODS password')
             tl.transient(master)
 
             ff = form.FormFrame(tl)
-            pf = form.PasswordField('enter iRODS password:',
+            pf = form.PasswordField('password for {}@{}:'.format(user, zone),
                                     return_cb=tl.destroy)
             ff.grid_fields([pf])
             ff.pack()

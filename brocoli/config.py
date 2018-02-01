@@ -30,7 +30,7 @@ class Config(collections.OrderedDict):
     """
 
     def connection(self, name=None):
-        name = name or self[SETTINGS]['default_connection']
+        name = name or self.default_connection_name()
 
         conn = self['connection:' + name]
 
@@ -45,6 +45,9 @@ class Config(collections.OrderedDict):
 
     def connection_names(self):
         return [k.split(':', 1)[1] for k in self if k.startswith('connection:')]
+
+    def default_connection_name(self):
+        return self[SETTINGS]['default_connection']
 
 
 def bootstrap_config_parser(config):
