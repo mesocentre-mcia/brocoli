@@ -76,11 +76,11 @@ class TreeWidget(tk.Frame):
         ('mtime', ColumnDef('mtime', 'modification time')),
     ])
 
-    def __init__(self, master, root_path):
+    def __init__(self, master):
         tk.Frame.__init__(self, master)
 
         self.master = master
-        self.root_path = root_path
+        self.root_path = ''
 
         self.catalog = None
         self.path = None
@@ -136,6 +136,8 @@ class TreeWidget(tk.Frame):
             if catalog is None:
                 # user must have cancelled something
                 return False
+
+            path = catalog.normpath(path)
 
             # verify root path is valid
             if not catalog.isdir(path):
