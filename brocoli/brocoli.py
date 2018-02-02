@@ -81,7 +81,7 @@ class BrocoliApplication(object):
         self.root.config(menu=self.menubar)
 
         # main window tree view, populate connection menu
-        self.tree_widget = TreeWidget(self.root, self.path)
+        self.tree_widget = TreeWidget(self.root)
         self.tree_widget.grid(sticky='nsew')
 
         self.set_display_columns()

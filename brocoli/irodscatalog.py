@@ -135,6 +135,24 @@ class iRODSCatalog(catalog.Catalog):
         dirname, _ = self.splitname(path)
         return dirname
 
+    def normpath(self, path):
+        pathlist = []
+
+        for t in path.split('/'):
+            if t == '' or t == '.':
+                continue
+
+            if t == '..':
+                if len(pathlist):
+                    del pathlist[-1]
+                continue
+
+            pathlist.append(t)
+
+        normpath = '/'.join([''] + pathlist)
+
+        return normpath or '/'
+
     @translate_exceptions
     def lstat(self, path):
         if self.isdir(path):

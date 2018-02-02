@@ -56,6 +56,14 @@ class Catalog(object):
         """
         raise NotImplementedError
 
+    def normpath(self, path):
+        """
+        Performs the equivalent of os.path.normpath() in the context of the
+        Catalog object.
+        """
+        raise NotImplementedError
+
+
     def download_files(self, pathlist, destdir):
         """
         Downloads files from the catalog pathlist to local destdir.
@@ -155,6 +163,9 @@ class OSCatalog(Catalog):
 
     def basename(self, path):
         return os.path.basename(path)
+
+    def normpath(self, path):
+        return os.path.normpath(path)
 
     def download_files(self, pathlist, destdir):
         number = len(pathlist)
