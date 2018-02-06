@@ -12,13 +12,16 @@ class Catalog(object):
     """
     def lstat(self, path):
         """
-        Returns a dictionary of informations about specified path.
+        Returns a dictionary of informations about specified path. Mandatory
+        fields are: size, mtime, nreplicas, user, isdir
         """
         raise NotImplementedError
 
     def listdir(self, path):
         """
-        Returns directory contents (only filenames, not absolute paths).
+        Returns directory contents (only filenames, not absolute paths) in the
+        form of a dictionary. Each value of the dictionary has to be itself a
+        dictionary as would be returned by lstat()
         """
         raise NotImplementedError
 
@@ -135,19 +138,32 @@ class OSCatalog(Catalog):
         stats = os.lstat(path)
 
         nreplicas = '1'
+        isdir = False
         if self.isdir(path):
             nreplicas = ''
+            isdir = True
         ret = {
             'user': stats.st_uid,
             'size': stats.st_size,
             'mtime': datetime.fromtimestamp(stats.st_mtime),
             'nreplicas': nreplicas,
+            'isdir': isdir,
         }
 
         return ret
 
     def listdir(self, path):
-        return os.listdir(path)
+        entries = os.listdir(path)
+
+        directories = []
+        files = []
+
+        ret = {}
+        for e in entries:
+            v = self.lstat(self.join(path, e))
+            ret[e] = v
+
+        return ret
 
     def isdir(self, path):
         return os.path.isdir(path)

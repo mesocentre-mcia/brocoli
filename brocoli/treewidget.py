@@ -445,7 +445,7 @@ class TreeWidget(tk.Frame):
     def goto_selected(self):
         selected = self.get_selection()[0]
         path = self.item_path(selected)
-        print_(selected, path)
+        print_('go to', elected, path)
         self.set_path(path)
 
     def selected_properties(self):
@@ -485,7 +485,18 @@ class TreeWidget(tk.Frame):
             self.process_directory(iid, iid)
 
     def process_directory(self, parent, path):
-        children = self.catalog.listdir(path)
+        def fill_item(name, st):
+            abspath = self.catalog.join(path, name)
+
+            values = [st[k] for k in self.columns]
+            oid = self.tree.insert(parent, 'end', iid=abspath, text=name,
+                                   open=False, values=values)
+
+            if st['isdir']:
+                self.tree.insert(oid, 'end',
+                                 iid=self.__placeholder_prefix + abspath)
+
+        entries = self.catalog.listdir(path)
 
         item_children = self.tree.get_children(parent)
         for child in item_children:
@@ -500,20 +511,10 @@ class TreeWidget(tk.Frame):
             self.tree.insert(parent, 'end', iid=self.__dot_prefix + path,
                              text='.')
 
-        if not children:
+        if not entries:
             self.tree.insert(parent, 'end', iid=self.__empty_prefix + path,
                              text='<empty dir>')
             return
 
-        for p in children:
-            abspath = self.catalog.join(path, p)
-            isdir = self.catalog.isdir(abspath)
-            st = self.catalog.lstat(abspath)
-
-            values = [st[k] for k in self.columns]
-            oid = self.tree.insert(parent, 'end', iid=abspath, text=p,
-                                   open=False, values=values)
-
-            if isdir:
-                self.tree.insert(oid, 'end',
-                                 iid=self.__placeholder_prefix + abspath)
+        for k, v in entries.items():
+            fill_item(k, v)

@@ -11,6 +11,7 @@ import re
 import os
 import hashlib
 import collections
+import datetime
 
 from six import print_
 from six.moves import tkinter as tk
@@ -170,7 +171,66 @@ class iRODSCatalog(catalog.Catalog):
             'size': '',
             'mtime': '',
             'nreplicas': '',
+            'isdir': True,
         }
+
+        return ret
+
+    def lstat_dirs(self, parent_path):
+        q = self.session.query(Collection.name, Collection.owner_name)
+        q = q.filter(Collection.parent_name == parent_path)
+
+        ret = {}
+        for r in q.get_results():
+
+            ret[self.basename(r[Collection.name])] = {
+                'user': r[Collection.owner_name],
+                'size': '',
+                'mtime': '',
+                'nreplicas': '',
+                'isdir': True,
+            }
+
+        return ret
+
+    def lstat_files(self, dirname):
+        epoch = datetime.datetime(1, 1, 1)
+
+        q = self.session.query(DataObject.name, DataObject.owner_name,
+                               DataObject.size,
+                               DataObject.modify_time, DataObject.replica_number)
+        q = q.filter(Collection.name == dirname)
+
+        ret = {}
+        for r in q.get_results():
+            name = r[DataObject.name]
+            dobj = ret.get(name, {'minsize': None, 'maxsize': 0,
+                                  'mtime': epoch, 'isdir': False,
+                                  'nreplicas': 0})
+
+            dobj['user'] = r[DataObject.owner_name]
+            dobj['nreplicas'] += 1
+
+            mtime = r[DataObject.modify_time]
+            if mtime > dobj['mtime']:
+                dobj['mtime'] = mtime
+
+            size = r[DataObject.size]
+            if dobj['minsize'] is None or size < dobj['minsize']:
+                dobj['minsize'] = size
+
+            if size > dobj['maxsize']:
+                dobj['maxsize'] = size
+
+            ret[name] = dobj
+
+        for k, v in ret.items():
+            minsize = v['minsize']
+            maxsize = v['maxsize']
+            if maxsize != minsize:
+                v['size'] = '{}-{}'.format(minsize, maxsize)
+            else:
+                v['size'] = str(minsize)
 
         return ret
 
@@ -186,7 +246,7 @@ class iRODSCatalog(catalog.Catalog):
             # no replica
             raise exceptions.ioerror(exceptions.errno.ENOENT)
 
-        ret = {'nreplicas': len(replicas)}
+        ret = {'nreplicas': len(replicas), 'isdir': False}
         minsize = None
         maxsize = 0
         for r in replicas:
@@ -213,7 +273,11 @@ class iRODSCatalog(catalog.Catalog):
         q = self.session.query(Collection.name) \
             .filter(Collection.parent_name == path)
         colls = [self.basename(c[Collection.name]) for c in q.all()]
-        return colls + files
+
+        ret = self.lstat_dirs(path)
+        ret.update(self.lstat_files(path))
+
+        return ret
 
     @translate_exceptions
     def isdir(self, path):
