@@ -106,6 +106,9 @@ class iRODSCatalog(catalog.Catalog):
     """
     A Catalog for connectiong to iRODS
     """
+
+    BUFFER_SIZE = io.DEFAULT_BUFFER_SIZE * 1000
+
     @classmethod
     def encode(cls, s):
         return password_obfuscation.encode(s, _getuid())
@@ -339,7 +342,7 @@ class iRODSCatalog(catalog.Catalog):
     def download_files(self, pathlist, destdir):
         nfiles, size = self.remote_files_stats(pathlist)
 
-        if nfiles > 1 or size > data_object_manager.READ_BUFFER_SIZE:
+        if nfiles > 1 or size > self.BUFFER_SIZE:
             # wake up progress bar for more than one file or one large file
             yield 0, size
 
@@ -360,7 +363,7 @@ class iRODSCatalog(catalog.Catalog):
                 raise ex.OVERWRITE_WITHOUT_FORCE_FLAG
 
             with open(file, 'wb') as f, self.dom.open(obj, 'r', **options) as o:
-                for chunk in chunks(o, data_object_manager.READ_BUFFER_SIZE):
+                for chunk in chunks(o, self.BUFFER_SIZE):
                     f.write(chunk)
                     yield len(chunk)
 
@@ -412,7 +415,7 @@ class iRODSCatalog(catalog.Catalog):
         def local_file_md5(filename):
             m = hashlib.md5()
             with open(filename, 'rb') as f:
-                for chunk in chunks(f, io.DEFAULT_BUFFER_SIZE * 1000):
+                for chunk in chunks(f, self.BUFFER_SIZE):
                     m.update(chunk)
 
             return m.hexdigest()
@@ -431,7 +434,7 @@ class iRODSCatalog(catalog.Catalog):
                 options[kw.OPR_TYPE_KW] = 1  # PUT_OPR
 
             with open(file, 'rb') as f, self.dom.open(obj, 'w', **options) as o:
-                for chunk in chunks(f, data_object_manager.WRITE_BUFFER_SIZE):
+                for chunk in chunks(f, self.BUFFER_SIZE):
                     o.write(chunk)
                     yield len(chunk)
 
@@ -456,7 +459,7 @@ class iRODSCatalog(catalog.Catalog):
             irods_path = path + basename
             print_('put', f, path, irods_path)
 
-            if os.stat(f).st_size > data_object_manager.READ_BUFFER_SIZE:
+            if os.stat(f).st_size > self.BUFFER_SIZE:
                 # wake up progress bar before checksum for large files
                 yield 0
 
