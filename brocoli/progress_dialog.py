@@ -49,6 +49,8 @@ class ProgressDialog:
         self.label = tk.Label(self.toplevel, text=opname + ' progress: 0%')
         self.label.pack()
 
+        self.count.set(-1)
+
         self.progress = ttk.Progressbar(self.toplevel, orient='horizontal',
                                         mode='determinate',
                                         variable=self.count,
