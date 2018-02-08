@@ -13,6 +13,7 @@ import collections
 
 from . import config
 from . import form
+from . listmanager import ListManager
 from . treewidget import TreeWidget
 
 
@@ -139,8 +140,6 @@ class ConnectionManager(tk.Frame):
         self.tree.heading('default connection', text='default connection',
                           anchor='w')
 
-        self.insert_connections()
-
         self.tree.grid(row=0, column=0, sticky='nsew')
         ysb.grid(row=0, column=1, sticky='ns')
         xsb.grid(row=1, column=0, sticky='ew')
@@ -155,12 +154,17 @@ class ConnectionManager(tk.Frame):
         self.editbut = tk.Button(butbox, text='Edit', command=self.edit,
                                  state=tk.DISABLED)
         self.editbut.grid(row=2, column=0, sticky='ew')
+        self.dupbut = tk.Button(butbox, text='Duplicate',
+                                command=self.duplicate, state=tk.DISABLED)
+        self.dupbut.grid(row=3, column=0, sticky='ew')
 
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
         self.grid(sticky='nsew')
 
         self.tree.bind('<<TreeviewSelect>>', self.selchanged)
+
+        self.insert_connections()
 
     def insert_connections(self):
         default = self.cfg[config.SETTINGS]['default_connection']
@@ -214,10 +218,15 @@ class ConnectionManager(tk.Frame):
 
         self.insert_connections()
 
-    def edit(self):
+    def edit(self, duplicate=False):
         selected = self.tree.selection()[0]
         item = self.tree.item(selected)
+
         name = item['text']
+        cname = self.cfg['connection:' + name]
+        if duplicate:
+            name += ' (copy)'
+
         catalog_type, root_path, isdefault = item['values']
 
         if isdefault == '':
@@ -225,7 +234,6 @@ class ConnectionManager(tk.Frame):
         else:
             isdefault = 1
 
-        cname = self.cfg['connection:' + name]
         n = ConnectionConfigDialog(self, name, catalog_type, root_path,
                                    isdefault, catalog_config=cname)
         new = n.result
@@ -253,8 +261,11 @@ class ConnectionManager(tk.Frame):
         self.tree.selection_set('')
         self.insert_connections()
 
+    def duplicate(self):
+        self.edit(duplicate=True)
+
     def selchanged(self, event):
-        buts = (self.editbut, self.removebut)
+        buts = (self.editbut, self.removebut, self.dupbut)
         if self.tree.selection():
             for b in buts:
                 b.config(state=tk.NORMAL)
