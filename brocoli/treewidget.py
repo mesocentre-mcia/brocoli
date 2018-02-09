@@ -436,11 +436,22 @@ class TreeWidget(tk.Frame):
         if not name:
             return
 
-        self.catalog.mkdir(self.catalog.join(parent, name))
+        new_dir = self.catalog.join(parent, name)
+        self.catalog.mkdir(new_dir)
 
         if selected.startswith(TreeWidget.__dot_prefix):
             selected = ''
-        self.process_directory(selected, parent)
+        elif not self.tree.item(selected, option='open'):
+            # non root closed directory parent needs to be open for display
+            self.process_directory(selected, parent)
+            self.tree.item(selected, open=True)
+            return
+
+        if self.__empty_prefix + parent in self.tree.get_children(selected):
+            self.tree.delete(self.__empty_prefix + parent)
+
+        st = self.catalog.lstat(new_dir)
+        self.__fill_item(selected, parent, name, st)
 
     def goto_selected(self):
         selected = self.get_selection()[0]
@@ -484,17 +495,18 @@ class TreeWidget(tk.Frame):
            children[0].startswith(self.__placeholder_prefix):
             self.process_directory(iid, iid)
 
+    def __fill_item(self, parent, path, name, st):
+        abspath = self.catalog.join(path, name)
+
+        values = [st[k] for k in self.columns]
+        oid = self.tree.insert(parent, 'end', iid=abspath, text=name,
+                               open=False, values=values)
+
+        if st['isdir']:
+            self.tree.insert(oid, 'end',
+                             iid=self.__placeholder_prefix + abspath)
+
     def process_directory(self, parent, path):
-        def fill_item(name, st):
-            abspath = self.catalog.join(path, name)
-
-            values = [st[k] for k in self.columns]
-            oid = self.tree.insert(parent, 'end', iid=abspath, text=name,
-                                   open=False, values=values)
-
-            if st['isdir']:
-                self.tree.insert(oid, 'end',
-                                 iid=self.__placeholder_prefix + abspath)
 
         entries = self.catalog.listdir(path)
 
@@ -517,4 +529,4 @@ class TreeWidget(tk.Frame):
             return
 
         for k, v in entries.items():
-            fill_item(k, v)
+            self.__fill_item(parent, path, k, v)
