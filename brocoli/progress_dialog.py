@@ -70,26 +70,27 @@ class ProgressDialog:
     def finish(self):
         self.toplevel.destroy()
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, type, value, traceback):
+        self.finish()
+
 def progress_from_generator(master, message, generator):
     """
     Builds a ProgressDialog eveolving from a generator that yields pairs of
     values in the form (current, total)
     """
-    progress = ProgressDialog(master, message)
-
-    for p, n in generator:
-        progress.set(p, n)
-
-    progress.finish()
+    with ProgressDialog(master, message) as progress:
+        for p, n in generator:
+            progress.set(p, n)
 
 def unbounded_progress_from_generator(master, message, generator):
     """
     Builds a ProgressDialog eveolving from a generator yields (no matter what
     the generator yields)
     """
-    progress = UnboundedProgressDialog(master, message)
+    with UnboundedProgressDialog(master, message) as progress:
+        for _ in generator:
+            progress.step(4)
 
-    for _ in generator:
-        progress.step(4)
-
-    progress.finish()
