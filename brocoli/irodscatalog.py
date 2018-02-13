@@ -33,8 +33,14 @@ _getuid = None
 if hasattr(os, 'getuid'):
     _getuid = os.getuid
 else:
+    import getpass
+
     # generate a fake uid on systems that lacks os.getuid()
-    _getuid = lambda: int('0x' + hashlib.md5(os.getlogin().encode()).hexdigest(), 16) % 10000
+    def _fake_getuid():
+        return int('0x' + hashlib.md5(getpass.getuser().encode()).hexdigest(),
+                   16) % 10000
+
+    _getuid = _fake_getuid
 
 
 def parse_env3(path):
@@ -205,7 +211,8 @@ class iRODSCatalog(catalog.Catalog):
 
         q = self.session.query(DataObject.name, DataObject.owner_name,
                                DataObject.size,
-                               DataObject.modify_time, DataObject.replica_number)
+                               DataObject.modify_time,
+                               DataObject.replica_number)
         q = q.filter(Collection.name == dirname)
 
         ret = {}
@@ -310,9 +317,11 @@ class iRODSCatalog(catalog.Catalog):
             q = q.filter(Collection.name == d)
 
             for r in q.get_results():
-                stats[self.join(d, r[DataObject.name])] = int(r[DataObject.size])
+                stats[self.join(d, r[DataObject.name])] = \
+                  int(r[DataObject.size])
 
-        return len(file_paths), sum([v for k, v in stats.items() if k in file_paths])
+        return (len(file_paths),
+                sum([v for k, v in stats.items() if k in file_paths]))
 
     def remote_trees_stats(self, dirs):
         nfiles = 0
@@ -320,7 +329,7 @@ class iRODSCatalog(catalog.Catalog):
 
         for d in dirs:
             # need to keep column 'collection_id' to avoid 'distinct' clause on
-            #recursive queries
+            # recursive queries
             q = self.session.query(DataObject.collection_id, DataObject.name,
                                    DataObject.size)
 
