@@ -242,7 +242,7 @@ class ConnectionManager(tk.Frame):
 
         new_name = new['name']
         del new['name']
-        if new_name != name:
+        if not duplicate and new_name != name:
             del self.cfg['connection:' + name]
 
         if new['set_default']:
