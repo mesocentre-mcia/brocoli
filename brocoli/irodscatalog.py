@@ -705,7 +705,12 @@ def irods3_catalog_from_config(cfg):
     port = cfg['port']
     user = cfg['user_name']
     zone = cfg['zone']
+
     default_resc = cfg.get('default_resc', None)
+    if default_resc == '':
+        # empty string is not valid for default_resc
+        default_resc = None
+
     store_password = cfg['store_password']
     scrambled_password = None
     if store_password.lower() in ['1', 'yes', 'on', 'true']:
