@@ -58,16 +58,11 @@ class SwitcherSubmenu:
 
 
 class BrocoliApplication(object):
-    def __init__(self, cfg, connection_name):
+    def __init__(self, cfg):
         # run Tk
         self.root = tk.Tk()
 
         self.cfg = cfg
-
-        # get connection
-        self.cat, root_path = cfg.connection(connection_name)
-
-        self.path = root_path
 
         # create menus
         self.menubar = tk.Menu(self.root)
@@ -99,8 +94,6 @@ class BrocoliApplication(object):
         self.root.rowconfigure(0, weight=1)
         self.root.columnconfigure(0, weight=1)
 
-        self.set_connection(connection_name)
-
     def run(self):
         self.root.mainloop()
 
@@ -131,8 +124,16 @@ class BrocoliApplication(object):
 
     def set_connection(self, connection_name):
         conn, path = self.cfg.connection(connection_name)
-        if self.tree_widget.set_connection(conn, path):
-            self.root.title('Brocoli - ' + (connection_name or self.cfg.default_connection_name()))
+
+        conn_name = '<Not connected>'
+        if conn is not None:
+            if not self.tree_widget.set_connection(conn, path):
+                return
+
+            conn_name = connection_name or self.cfg.default_connection_name()
+
+        app_name = 'Brocoli-{} - {}'.format(__version__, conn_name)
+        self.root.title(app_name)
 
 
 def main():
@@ -150,7 +151,9 @@ def main():
 
     cfg = config.load_config()
 
-    app = BrocoliApplication(cfg, args.connection)
+    app = BrocoliApplication(cfg)
+
+    app.set_connection(args.connection)
 
     app.run()
 

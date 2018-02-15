@@ -84,21 +84,21 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         self.result.update(config)
 
     def to_config_dict(self):
-        config = collections.OrderedDict()
+        cfg = collections.OrderedDict()
         if self.result is None:
-            return config
+            return cfg
 
         new_conn = self.result
         name = new_conn['name']
         del new_conn['name']
 
         if new_conn['set_default']:
-            config[config.SETTINGS] = {'default_connection': name}
+            cfg[config.SETTINGS] = {config.DEFAULT_CONNECTION: name}
         del new_conn['set_default']
 
-        config['connection:' + name] = new_conn
+        cfg['connection:' + name] = new_conn
 
-        return config
+        return cfg
 
     def catalog_type_changed(self, event=None, catalog_config=None):
         catalog_type = self.catalog_cbox.get()
@@ -167,7 +167,7 @@ class ConnectionManager(tk.Frame):
         self.insert_connections()
 
     def insert_connections(self):
-        default = self.cfg[config.SETTINGS]['default_connection']
+        default = self.cfg[config.SETTINGS].get(config.DEFAULT_CONNECTION, None)
 
         for child in self.tree.get_children():
             self.tree.delete(child)
@@ -192,7 +192,7 @@ class ConnectionManager(tk.Frame):
         del new['name']
 
         if new['set_default']:
-            self.cfg[config.SETTINGS]['default_connection'] = name
+            self.cfg[config.SETTINGS][config.DEFAULT_CONNECTION] = name
         del new['set_default']
 
         self.cfg['connection:' + name] = new
@@ -204,15 +204,10 @@ class ConnectionManager(tk.Frame):
 
         del self.cfg[selected]
 
-        if selected == ('connection:' +
-                        self.cfg[config.SETTINGS]['default_connection']):
-            connections = [c.rsplit(':', 1)[1] for c in self.cfg
-                           if c.startswith('connection:')]
-            new_default = None
-            if connections:
-                new_default = connections[0]
-
-            self.cfg[config.SETTINGS]['default_connection'] = new_default
+        if config.DEFAULT_CONNECTION in self.cfg[config.SETTINGS] and \
+           selected == ('connection:' +
+                        self.cfg[config.SETTINGS][config.DEFAULT_CONNECTION]):
+            del self.cfg[config.SETTINGS][config.DEFAULT_CONNECTION]
 
         self.tree.selection_set('')
 
@@ -246,13 +241,9 @@ class ConnectionManager(tk.Frame):
             del self.cfg['connection:' + name]
 
         if new['set_default']:
-            self.cfg[config.SETTINGS]['default_connection'] = new_name
-        elif self.cfg[config.SETTINGS]['default_connection'] == name:
-            connections = [c.rsplit(':', 1)[1] for c in self.cfg
-                           if c.startswith('connection:')]
-            new_default = None
-            if connections:
-                new_default = connections[0]
+            self.cfg[config.SETTINGS][config.DEFAULT_CONNECTION] = new_name
+        elif self.cfg[config.SETTINGS].get(config.DEFAULT_CONNECTION, None) == name:
+            del self.cfg[config.SETTINGS][config.DEFAULT_CONNECTION]
 
         del new['set_default']
 

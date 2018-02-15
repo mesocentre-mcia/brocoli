@@ -102,6 +102,8 @@ def translate_exceptions(method):
             return method(self, *args, **kwargs)
         except irods.exception.CAT_INVALID_AUTHENTICATION as e:
             raise exceptions.ConnectionError(e)
+        except irods.exception.NetworkException as e:
+            raise exceptions.NetworkError(e)
         except irods.exception.CAT_UNKNOWN_COLLECTION as e:
             raise exceptions.FileNotFoundError(e)
 
