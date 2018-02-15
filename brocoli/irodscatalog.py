@@ -654,6 +654,7 @@ class iRODSCatalog(catalog.Catalog):
             ('port', form.IntegerField('iRODS port:', '1247', tags=tags)),
             ('zone', form.TextField('iRODS zone:', tags=tags)),
             ('user_name', form.TextField('iRODS user name:', tags=tags)),
+            ('default_resc', form.TextField('Default resource:', tags=tags)),
             ('store_password', form.BooleanField('Remember password',
                                                  enables_tags=['password'],
                                                  tags=tags)),
@@ -661,7 +662,6 @@ class iRODSCatalog(catalog.Catalog):
                                             encode=cls.encode,
                                             decode=cls.decode,
                                             tags=tags + ['password'])),
-            ('default_resc', form.TextField('Default resource:', tags=tags)),
         ])
 
 
