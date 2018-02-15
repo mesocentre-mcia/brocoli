@@ -721,11 +721,14 @@ def irods3_catalog_from_config(cfg):
                                            scrambled_password, default_resc)
     else:
         def ask_password(master):
+            cancelled = {'cancelled': False}
+
             def _do_ok(e=None):
                 tl.destroy()
 
             def _do_cancel(e=None):
                 pf.from_string('')
+                cancelled['cancelled'] = True
                 tl.destroy()
 
             tl = tk.Toplevel(master)
@@ -734,7 +737,7 @@ def irods3_catalog_from_config(cfg):
 
             ff = form.FormFrame(tl)
             pf = form.PasswordField('password for {}@{}:'.format(user, zone),
-                                    return_cb=tl.destroy)
+                                    return_cb=_do_ok)
             ff.grid_fields([pf])
             ff.pack()
 
@@ -749,7 +752,7 @@ def irods3_catalog_from_config(cfg):
 
             tl.wait_window()
 
-            if not pf.to_string():
+            if cancelled['cancelled']:
                 return None
 
             scrambled_password = iRODSCatalog.encode(pf.to_string())
