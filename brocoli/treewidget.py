@@ -457,7 +457,7 @@ class TreeWidget(tk.Frame):
     def goto_selected(self):
         selected = self.get_selection()[0]
         path = self.item_path(selected)
-        print_('go to', elected, path)
+        print_('go to', selected, path)
         self.set_path(path)
 
     def selected_properties(self):
