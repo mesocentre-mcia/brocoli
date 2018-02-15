@@ -5,6 +5,7 @@ Progression dialog classes
 from six.moves import tkinter as tk
 from six.moves import tkinter_ttk as ttk
 
+
 class UnboundedProgressDialog:
     """
     Displays a progression dialog without information on the completion of the
@@ -32,6 +33,7 @@ class UnboundedProgressDialog:
     def finish(self):
         self.toplevel.destroy()
 
+
 class ProgressDialog:
     """
     Displays a dialog with a completion percentage
@@ -58,7 +60,7 @@ class ProgressDialog:
 
         self.progress.pack(expand=True, fill=tk.BOTH, side=tk.TOP)
 
-    def set(self, value, maximum = 100):
+    def set(self, value, maximum=100):
         value = int((100 * value) / maximum)
         if value == self.count.get():
             return
@@ -76,21 +78,22 @@ class ProgressDialog:
     def __exit__(self, type, value, traceback):
         self.finish()
 
+
 def progress_from_generator(master, message, generator):
     """
-    Builds a ProgressDialog eveolving from a generator that yields pairs of
+    Builds a ProgressDialog evolving from a generator that yields pairs of
     values in the form (current, total)
     """
     with ProgressDialog(master, message) as progress:
         for p, n in generator:
             progress.set(p, n)
 
+
 def unbounded_progress_from_generator(master, message, generator):
     """
-    Builds a ProgressDialog eveolving from a generator yields (no matter what
+    Builds a ProgressDialog evolving from a generator yields (no matter what
     the generator yields)
     """
     with UnboundedProgressDialog(master, message) as progress:
         for _ in generator:
             progress.step(4)
-
