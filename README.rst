@@ -83,7 +83,7 @@ configuration fields are:
 * ``iRODS default resource`` - the iRODS resource to use (optional)
 * ``Remember password`` - check if you want Brocoli to store your iRODS password
   (**dangerous**: although Brocoli scrambles the stored password, it may be easy
-  to unscramble if someone gained acces the that value)
+  to unscramble for someone who gained access to that value)
 * ``iRODS password``
 
 Now, you should be able to switch to the newly created connection by following:
@@ -102,7 +102,7 @@ menu or entering its path directly in the navigation bar.
 The ``.`` special entry refers to the currently displayed directory (the path
 displayed in the navigation bar).
 
-The `..`` special entry appears when visiting a subdirectory of the connection
+The ``..`` special entry appears when visiting a subdirectory of the connection
 root path. It refers to the current path parent directory.
 
 File operations
@@ -121,7 +121,8 @@ File/directory operations
 Directory only operations
 
 * ``New directory`` - creates a subdirectory of the selected directory
-* ``Upload local files`` - uploads local files into the catalog
+* ``Upload local files`` - uploads local files into the catalog under the
+  selected directory
 * ``Recursive upload`` - recursively uploads the contents of a local directory
   to the catalog
 * ``Go to`` - rebase Brocoli navigation bar to the selected directory
