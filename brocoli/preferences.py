@@ -58,16 +58,26 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         self.set_default = tk.Checkbutton(master,
                                           text='make default connection',
                                           variable=self.isdefault_var)
-        self.set_default.grid(row=3, column=1)
+        self.set_default.grid(row=3)
 
         self.catalog_config_frame = tk.Frame(master)
-        self.catalog_config_frame.grid(row=4, sticky='nsew')
+        self.catalog_config_frame.grid(row=4, column=1, sticky='nsew')
 
         self.catalog_type_changed(catalog_config=self.catalog_config)
         self.catalog_cbox.bind('<<ComboboxSelected>>',
                                self.catalog_type_changed)
+        master.columnconfigure(1, weight=1)
 
         self.result = None
+
+        return self.name
+
+    def buttonbox(self):
+        # tweak to allow body expansion inside the simpledialog
+        self.initial_focus.master.pack(padx=5, pady=5, expand=True,
+                                       fill=tk.BOTH, side=tk.TOP)
+
+        super(ConnectionConfigDialog, self).buttonbox()
 
     def apply(self):
         self.result = collections.OrderedDict([
@@ -114,6 +124,7 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         self.catalog_config_frame = form.FormFrame(master)
         self.catalog_config_frame.grid_fields(self.config_fields.values(),
                                               False)
+        self.catalog_config_frame.columnconfigure(1, weight=1)
         self.catalog_config_frame.grid(row=4, columnspan=2, sticky='nsew')
 
 

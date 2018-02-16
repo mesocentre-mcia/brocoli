@@ -342,7 +342,7 @@ class FormFrame(tk.Frame, object):
                     v.append(w)
                     tag_dict[t] = v
 
-                w.grid(row=i, column=j)
+                w.grid(row=i, column=j, sticky='ew')
                 j += 1
             if i == 0 and focus_first:
                 widgets[-1].focus_set()
