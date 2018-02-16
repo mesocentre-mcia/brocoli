@@ -164,8 +164,19 @@ class TreeWidget(tk.Frame):
         return True
 
     def set_path(self, path, clear_history=False):
+        def is_subpath(path):
+            if path == '':
+                return False
+            if path == self.root_path:
+                return True
+            return is_subpath(self.catalog.dirname(path))
+
         if path == self.path:
             return True, self.path
+
+        if not is_subpath(path):
+            # enforce path to be a subdirectory of connection root path
+            return False, self.path
 
         try:
             if not self.catalog.isdir(path):
