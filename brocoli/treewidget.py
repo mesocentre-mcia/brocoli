@@ -40,7 +40,6 @@ def handle_catalog_exceptions(method):
                                   '{}').format(str(e)))
             print_(traceback.format_exc())
 
-
     return method_wrapper
 
 
@@ -151,7 +150,7 @@ class TreeWidget(tk.Frame):
                                      ('Connection root path \'{}\' does ' +
                                       'not exist on catalog').format(path))
                 return False
-        except exceptions.ConnectionError as e:
+        except (exceptions.ConnectionError, exceptions.NetworkError) as e:
             messagebox.showerror('Connection error',
                                  ('Connection failed with error: ' +
                                   '{}').format(str(e)))
@@ -165,8 +164,19 @@ class TreeWidget(tk.Frame):
         return True
 
     def set_path(self, path, clear_history=False):
+        def is_subpath(path):
+            if path == '':
+                return False
+            if path == self.root_path:
+                return True
+            return is_subpath(self.catalog.dirname(path))
+
         if path == self.path:
             return True, self.path
+
+        if not is_subpath(path):
+            # enforce path to be a subdirectory of connection root path
+            return False, self.path
 
         try:
             if not self.catalog.isdir(path):
@@ -193,6 +203,9 @@ class TreeWidget(tk.Frame):
         return True, self.path
 
     def refresh(self):
+        if self.catalog is None:
+            return
+
         print_('refresh', self.path)
 
         for child in self.tree.get_children():
@@ -317,7 +330,6 @@ class TreeWidget(tk.Frame):
             return item
 
         return m.group('suffix')
-
 
     def _goto(self, e):
         item = self.tree.identify_row(e.y)
@@ -456,7 +468,7 @@ class TreeWidget(tk.Frame):
     def goto_selected(self):
         selected = self.get_selection()[0]
         path = self.item_path(selected)
-        print_('go to', elected, path)
+        print_('go to', selected, path)
         self.set_path(path)
 
     def selected_properties(self):
@@ -466,7 +478,8 @@ class TreeWidget(tk.Frame):
         props = None
         entry_type = ''
         if len(self.tree.get_children(selected)) > 0 or selected != path:
-            # directories have children or their iid is different from their path
+            # directories have children or have their iid different from
+            # their path
             props = self.catalog.directory_properties(path)
             entry_type = 'Directory'
         else:

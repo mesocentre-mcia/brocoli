@@ -13,6 +13,9 @@ class BrocoliError(Exception):
 class ConnectionError(BrocoliError):
     pass
 
+class NetworkError(BrocoliError):
+    pass
+
 class FileNotFoundError(BrocoliError):
     pass
 

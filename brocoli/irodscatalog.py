@@ -102,6 +102,8 @@ def translate_exceptions(method):
             return method(self, *args, **kwargs)
         except irods.exception.CAT_INVALID_AUTHENTICATION as e:
             raise exceptions.ConnectionError(e)
+        except irods.exception.NetworkException as e:
+            raise exceptions.NetworkError(e)
         except irods.exception.CAT_UNKNOWN_COLLECTION as e:
             raise exceptions.FileNotFoundError(e)
 
@@ -652,6 +654,7 @@ class iRODSCatalog(catalog.Catalog):
             ('port', form.IntegerField('iRODS port:', '1247', tags=tags)),
             ('zone', form.TextField('iRODS zone:', tags=tags)),
             ('user_name', form.TextField('iRODS user name:', tags=tags)),
+            ('default_resc', form.TextField('Default resource:', tags=tags)),
             ('store_password', form.BooleanField('Remember password',
                                                  enables_tags=['password'],
                                                  tags=tags)),
@@ -659,7 +662,6 @@ class iRODSCatalog(catalog.Catalog):
                                             encode=cls.encode,
                                             decode=cls.decode,
                                             tags=tags + ['password'])),
-            ('default_resc', form.TextField('Default resource:', tags=tags)),
         ])
 
 
@@ -719,11 +721,14 @@ def irods3_catalog_from_config(cfg):
                                            scrambled_password, default_resc)
     else:
         def ask_password(master):
+            cancelled = {'cancelled': False}
+
             def _do_ok(e=None):
                 tl.destroy()
 
             def _do_cancel(e=None):
                 pf.from_string('')
+                cancelled['cancelled'] = True
                 tl.destroy()
 
             tl = tk.Toplevel(master)
@@ -732,7 +737,7 @@ def irods3_catalog_from_config(cfg):
 
             ff = form.FormFrame(tl)
             pf = form.PasswordField('password for {}@{}:'.format(user, zone),
-                                    return_cb=tl.destroy)
+                                    return_cb=_do_ok)
             ff.grid_fields([pf])
             ff.pack()
 
@@ -747,7 +752,7 @@ def irods3_catalog_from_config(cfg):
 
             tl.wait_window()
 
-            if not pf.to_string():
+            if cancelled['cancelled']:
                 return None
 
             scrambled_password = iRODSCatalog.encode(pf.to_string())

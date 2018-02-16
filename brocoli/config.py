@@ -2,6 +2,7 @@ from . import catalog
 from . import irodscatalog
 
 from six.moves import configparser
+from six import print_
 
 import os
 import os.path
@@ -22,6 +23,7 @@ catalog_dict = {
 catalog_types = list(catalog_dict.keys())
 
 SETTINGS = 'SETTINGS'
+DEFAULT_CONNECTION = 'default_connection'
 
 
 class Config(collections.OrderedDict):
@@ -31,6 +33,9 @@ class Config(collections.OrderedDict):
 
     def connection(self, name=None):
         name = name or self.default_connection_name()
+
+        if name is None:
+            return None, None
 
         conn = self['connection:' + name]
 
@@ -47,7 +52,7 @@ class Config(collections.OrderedDict):
         return [k.split(':', 1)[1] for k in self if k.startswith('connection:')]
 
     def default_connection_name(self):
-        return self[SETTINGS]['default_connection']
+        return self[SETTINGS].get('default_connection', None)
 
 
 def bootstrap_config_parser(config):
@@ -55,10 +60,6 @@ def bootstrap_config_parser(config):
     Fills ConfigParser object with minimal values
     """
     config.add_section(SETTINGS)
-    config.set(SETTINGS, 'default_connection', 'default')
-    config.add_section('connection:default')
-    config.set('connection:default', 'catalog_type', 'os')
-    config.set('connection:default', 'root_path', tempfile.gettempdir())
 
 
 def load_config(filename=None):
