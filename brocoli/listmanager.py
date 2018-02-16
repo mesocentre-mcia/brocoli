@@ -1,11 +1,13 @@
 
 from six import print_
 from six.moves import tkinter as tk
-from six.moves import tkinter_tksimpledialog as tksimpledialog
 from six.moves import tkinter_ttk as ttk
 
 import collections
 import copy
+
+from . import form
+from . dialog import BrocoliDialog
 
 class ColumnDef(object):
     def __init__(self, name, text, anchor='w', form_field=None):
@@ -15,7 +17,7 @@ class ColumnDef(object):
         self.form_field = form_field
 
 
-class ItemConfigDialog(tksimpledialog.Dialog, object):
+class ItemConfigDialog(BrocoliDialog):
     def __init__(self, master, item_fields, item_config=None, **kwargs):
         self.item_fields = item_fields
         self.item_config = item_config
@@ -34,9 +36,12 @@ class ItemConfigDialog(tksimpledialog.Dialog, object):
 
         self.item_frame = form.FormFrame(master)
         self.item_frame.grid_fields(self.item_fields.values(), False)
-        self.item_frame.grid(row=0, sticky='nsew')
+        self.item_frame.grid(row=0, column=1, sticky='nsew')
+        self.item_frame.columnconfigure(1, weight=1)
 
         self.result = None
+
+        return self.item_frame
 
     def apply(self):
         self.result = collections.OrderedDict()
@@ -164,30 +169,3 @@ class List(object):
         lm.populate(self.rows)
 
         return lm
-
-
-if __name__ == '__main__':
-    import form
-
-    root = tk.Tk()
-
-    columns_def = collections.OrderedDict([
-        ('#0', ColumnDef('#0', 'name', form_field=form.TextField('name:'))),
-        ('col1', ColumnDef('col1', 'column 1', form_field=form.TextField('column 1 text:'))),
-        ('col2', ColumnDef('col2', 'column 2', form_field=form.IntegerField('column 2 integer:'))),
-    ])
-
-    lm = ListManager(root, columns_def, add=True, remove=True,
-                     edit=True)
-
-    rows = [
-        {'#0': 'value 1', 'col1': 'v1c1', 'col2': 1},
-        {'#0': 'value 2', 'col1': 'v2c1', 'col2': 2},
-    ]
-
-    lm.populate(rows)
-
-
-
-
-    root.mainloop()

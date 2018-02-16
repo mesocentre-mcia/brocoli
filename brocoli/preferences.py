@@ -4,7 +4,6 @@ Preferences handling widgets
 
 from six import print_
 from six.moves import tkinter as tk
-from six.moves import tkinter_tksimpledialog as tksimpledialog
 from six.moves import tkinter_ttk as ttk
 
 import tempfile
@@ -15,9 +14,10 @@ from . import config
 from . import form
 from . listmanager import ListManager
 from . treewidget import TreeWidget
+from . dialog import BrocoliDialog
 
 
-class ConnectionConfigDialog(tksimpledialog.Dialog, object):
+class ConnectionConfigDialog(BrocoliDialog):
     """
     A dialog to configure connections
     """
@@ -66,18 +66,10 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         self.catalog_type_changed(catalog_config=self.catalog_config)
         self.catalog_cbox.bind('<<ComboboxSelected>>',
                                self.catalog_type_changed)
-        master.columnconfigure(1, weight=1)
 
         self.result = None
 
         return self.name
-
-    def buttonbox(self):
-        # tweak to allow body expansion inside the simpledialog
-        self.initial_focus.master.pack(padx=5, pady=5, expand=True,
-                                       fill=tk.BOTH, side=tk.TOP)
-
-        super(ConnectionConfigDialog, self).buttonbox()
 
     def apply(self):
         self.result = collections.OrderedDict([
@@ -313,7 +305,7 @@ class ColumnManager(tk.Frame):
         self.cfg[config.SETTINGS]['display_columns'] = ','.join(displayed)
 
 
-class Preferences(tksimpledialog.Dialog):
+class Preferences(BrocoliDialog):
     """
     Preferences dialog
     """
@@ -322,10 +314,12 @@ class Preferences(tksimpledialog.Dialog):
         self.old_cfg = copy.deepcopy(self.cfg)
 
         self.notebook = ttk.Notebook(master)
-        self.notebook.pack()
+        self.notebook.pack(expand=True, fill=tk.BOTH, side=tk.TOP)
+
+        self.notebook.rowconfigure(0, weight=1)
+        self.notebook.columnconfigure(0, weight=1)
 
         self.connection_manager = ConnectionManager(self.notebook, self.cfg)
-        self.connection_manager.grid(row=0)
 
         self.notebook.add(self.connection_manager, text='Connections')
 
@@ -334,6 +328,8 @@ class Preferences(tksimpledialog.Dialog):
         self.notebook.add(self.column_manager, text='Display')
 
         self.changed = False
+
+        return self.notebook
 
     def apply(self):
         if self.cfg != self.old_cfg:
