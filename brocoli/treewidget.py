@@ -1,4 +1,5 @@
 from . import catalog
+from . progress_dialog import ProgressDialog
 from . progress_dialog import progress_from_generator as progress
 from . progress_dialog import unbounded_progress_from_generator as uprogress
 from . import exceptions
@@ -425,13 +426,20 @@ class TreeWidget(tk.Frame):
 
         parents = {self.tree.parent(f) for f in selection}
 
-        if files:
-            progress(self.master, 'delete {} files'.format(len(files)),
-                     self.catalog.delete_files(files))
+        with ProgressDialog(self.master, '') as progress_bar:
+            if files:
+                n = len(files)
+                progress_bar.set_message('delete {} files'.format(n))
+                progress_bar.set(0, n)
+                for p, n in self.catalog.delete_files(files):
+                    progress_bar.set(p, n)
 
-        if directories:
-            progress(self.master, 'delete {} directories'.format(len(files)),
-                     self.catalog.delete_directories(directories))
+            if directories:
+                n = len(directories)
+                progress_bar.set_message('delete {} directories'.format(n))
+                progress_bar.set(0, n)
+                for p, n in self.catalog.delete_directories(directories):
+                    progress_bar.set(p, n)
 
         if '' in parents:
             self.process_directory('', self.path)

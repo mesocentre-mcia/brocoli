@@ -60,13 +60,18 @@ class ProgressDialog:
 
         self.progress.pack(expand=True, fill=tk.BOTH, side=tk.TOP)
 
+    def set_message(self, message=None, percent=0):
+        if message is not None:
+            self.opname = message
+        self.label.config(text=self.opname + ' progress: {}%'.format(percent))
+
     def set(self, value, maximum=100):
         value = int((100 * value) / maximum)
         if value == self.count.get():
             return
 
         self.count.set(value)
-        self.label.config(text=self.opname + ' progress: {}%'.format(value))
+        self.set_message(percent=value)
         self.toplevel.update()
 
     def finish(self):
