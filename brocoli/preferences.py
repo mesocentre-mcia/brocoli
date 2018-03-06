@@ -34,9 +34,14 @@ class ConnectionConfigDialog(BrocoliDialog):
         super(ConnectionConfigDialog, self).__init__(master, **kwargs)
 
     def body(self, master):
-        tk.Label(master, text='Connection name:').grid(row=0)
-        tk.Label(master, text='Catalog type:').grid(row=1)
-        tk.Label(master, text='Root path:').grid(row=2)
+        a = 'e'
+        tk.Label(master, text='Connection name:', anchor=a).grid(row=0,
+                                                                 sticky='ew')
+        tk.Label(master, text='Catalog type:', anchor=a).grid(row=1,
+                                                              sticky='ew')
+        tk.Label(master, text='Root path:', anchor=a).grid(row=2, sticky='ew')
+        tk.Label(master, text='Default connection:', anchor=a).grid(row=3,
+                                                                    sticky='ew')
 
         self.name = ttk.Entry(master)
         self.name.grid(row=0, column=1, sticky='ew')
@@ -55,10 +60,9 @@ class ConnectionConfigDialog(BrocoliDialog):
 
         self.isdefault_var = tk.IntVar()
         self.isdefault_var.set(self.isdefault)
-        self.set_default = tk.Checkbutton(master,
-                                          text='make default connection',
-                                          variable=self.isdefault_var)
-        self.set_default.grid(row=3)
+        self.set_default = tk.Checkbutton(master, variable=self.isdefault_var,
+                                          anchor='w')
+        self.set_default.grid(row=3, column=1, sticky='ew')
 
         self.catalog_config_frame = tk.Frame(master)
         self.catalog_config_frame.grid(row=4, column=1, sticky='nsew')
