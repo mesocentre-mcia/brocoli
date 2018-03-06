@@ -484,6 +484,12 @@ class iRODSCatalog(catalog.Catalog):
     def _upload_dir(self, dir_, path):
         files = []
         subdirs = []
+
+        try:
+            coll = self.cm.create(path)
+        except irods.exception.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
+            pass
+
         for name in os.listdir(dir_):
             abspath = os.path.join(dir_, name)
             if os.path.isdir(abspath):
@@ -496,11 +502,6 @@ class iRODSCatalog(catalog.Catalog):
 
         for abspath, name in subdirs:
             cpath = self.join(path, name)
-            try:
-                coll = self.cm.create(cpath)
-                remove = False
-            except irods.exception.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
-                pass
 
             for y in self._upload_dir(abspath, cpath):
                 yield y
@@ -513,11 +514,6 @@ class iRODSCatalog(catalog.Catalog):
         for d in dirs:
             name = os.path.basename(d)
             cpath = self.join(path, name)
-
-            try:
-                self.cm.create(cpath)
-            except irods.exception.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
-                pass
 
             for s in self._upload_dir(d, cpath):
                 completed += s
@@ -648,14 +644,14 @@ class iRODSCatalog(catalog.Catalog):
         tags = ['inline_config']
 
         return collections.OrderedDict([
-            ('use_irods_env', form.BooleanField('Use irods environment file',
+            ('use_irods_env', form.BooleanField('Use irods environment file:',
                                                 disables_tags=tags)),
             ('host', form.HostnameField('iRODS host:', tags=tags)),
             ('port', form.IntegerField('iRODS port:', '1247', tags=tags)),
             ('zone', form.TextField('iRODS zone:', tags=tags)),
             ('user_name', form.TextField('iRODS user name:', tags=tags)),
             ('default_resc', form.TextField('Default resource:', tags=tags)),
-            ('store_password', form.BooleanField('Remember password',
+            ('store_password', form.BooleanField('Remember password:',
                                                  enables_tags=['password'],
                                                  tags=tags)),
             ('password', form.PasswordField('iRODS password:',
