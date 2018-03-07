@@ -122,6 +122,9 @@ class Catalog(object):
         """
         raise NotImplementedError
 
+    def close(self):
+        pass
+
     @classmethod
     def config_fields(cls):
         """

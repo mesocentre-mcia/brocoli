@@ -405,7 +405,7 @@ class FormFrame(tk.Frame, object):
         state = field.disables_state()
 
         for tag in tags:
-            tag_targets = self.tag_dict[tag]
+            tag_targets = self.tag_dict.get(tag, self.TagTargets())
             tag_targets.state = state
             for w in tag_targets:
                 state = tk.NORMAL
@@ -420,7 +420,7 @@ class FormFrame(tk.Frame, object):
         state = field.enables_state()
 
         for tag in tags:
-            tag_targets = self.tag_dict[tag]
+            tag_targets = self.tag_dict.get(tag, self.TagTargets())
             tag_targets.state = state
             for w in tag_targets:
                 state = tk.NORMAL
