@@ -13,6 +13,7 @@ import io
 import hashlib
 import collections
 import datetime
+import ssl
 
 from six import print_
 from six.moves import tkinter as tk
@@ -101,8 +102,9 @@ def method_translate_exceptions(method):
         try:
             return method(self, *args, **kwargs)
         except irods.exception.CAT_INVALID_AUTHENTICATION as e:
+            self.close()
             raise exceptions.ConnectionError(e)
-        except irods.exception.NetworkException as e:
+        except (irods.exception.NetworkException, ssl.SSLError) as e:
             raise exceptions.NetworkError(e)
         except irods.exception.CAT_UNKNOWN_COLLECTION as e:
             raise exceptions.FileNotFoundError(e)

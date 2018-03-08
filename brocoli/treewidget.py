@@ -119,17 +119,23 @@ class TreeWidget(tk.Frame):
                 messagebox.showerror('Path error',
                                      ('Path \'{}\' is not a ' +
                                       'directory').format(path))
+                catalog.close()
                 return False
+
         except IOError as e:
             if e.errno == exceptions.errno.ENOENT:
                 messagebox.showerror('Connection error',
                                      ('Connection root path \'{}\' does ' +
                                       'not exist on catalog').format(path))
-                return False
+            else:
+                messagebox.showerror('Connection error',
+                                     ('Connection Error: {}').format(str(e)))
+            return False
         except (exceptions.ConnectionError, exceptions.NetworkError) as e:
             messagebox.showerror('Connection error',
                                  ('Connection failed with error: ' +
                                   '{}').format(str(e)))
+
             return False
 
         self.catalog = catalog
