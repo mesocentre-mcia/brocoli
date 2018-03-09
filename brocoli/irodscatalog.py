@@ -807,8 +807,7 @@ class iRODSCatalog4(iRODSCatalogBase):
              form.IntegerField('irods_encryption_salt_size:', default_value='8',
                                tags=ssl_tags)),
             ('irods_ssl_ca_certificate_file',
-             form.TextField('irods_ssl_ca_certificate_file:',
-                            default_value='</path/to/irods/crt>',
+             form.FileSelectorField('irods_ssl_ca_certificate_file:',
                             tags=ssl_tags)),
         ])
 
