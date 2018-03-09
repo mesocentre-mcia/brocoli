@@ -1,6 +1,7 @@
 from six import print_
 from six.moves import tkinter as tk
 from six.moves import tkinter_ttk as ttk
+from six.moves import tkinter_tkfiledialog as filedialog
 
 import re
 
@@ -300,6 +301,33 @@ class ComboboxChoiceField(FormField):
     def get_widget(self, master):
         return ttk.Combobox(master, values=self.values, textvariable=self.var)
 
+
+class FileSelectorField(TextField):
+    """
+    A FormField allowing to choose a local file
+    """
+    def __init__(self, text, default_value='', #validate_command=None,
+                 tags=None):
+        super(FileSelectorField, self).__init__(text, default_value, tags=tags)
+
+    def get_widget(self, master):
+        frame = FieldContainer(master)
+
+        entry = tk.Entry(frame, textvariable=self.var)
+        entry.grid(row=0, column=0)
+        but = tk.Button(frame, text='browse', command=self.command)
+        but.grid(row=0, column=1)
+
+        return frame
+
+
+    def command(self):
+        file = filedialog.askopenfilename()
+
+        if file is None:
+            return
+
+        self.var.set(file)
 
 class FormFrame(tk.Frame, object):
     """
