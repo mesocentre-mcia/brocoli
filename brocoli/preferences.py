@@ -4,7 +4,6 @@ Preferences handling widgets
 
 from six import print_
 from six.moves import tkinter as tk
-from six.moves import tkinter_tksimpledialog as tksimpledialog
 from six.moves import tkinter_ttk as ttk
 
 import tempfile
@@ -15,9 +14,10 @@ from . import config
 from . import form
 from . listmanager import ListManager
 from . treewidget import TreeWidget
+from . dialog import BrocoliDialog
 
 
-class ConnectionConfigDialog(tksimpledialog.Dialog, object):
+class ConnectionConfigDialog(BrocoliDialog):
     """
     A dialog to configure connections
     """
@@ -34,9 +34,14 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         super(ConnectionConfigDialog, self).__init__(master, **kwargs)
 
     def body(self, master):
-        tk.Label(master, text='Connection name:').grid(row=0)
-        tk.Label(master, text='Catalog type:').grid(row=1)
-        tk.Label(master, text='Root path:').grid(row=2)
+        a = 'e'
+        tk.Label(master, text='Connection name:', anchor=a).grid(row=0,
+                                                                 sticky='ew')
+        tk.Label(master, text='Catalog type:', anchor=a).grid(row=1,
+                                                              sticky='ew')
+        tk.Label(master, text='Root path:', anchor=a).grid(row=2, sticky='ew')
+        tk.Label(master, text='Default connection:', anchor=a).grid(row=3,
+                                                                    sticky='ew')
 
         self.name = ttk.Entry(master)
         self.name.grid(row=0, column=1, sticky='ew')
@@ -55,19 +60,20 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
 
         self.isdefault_var = tk.IntVar()
         self.isdefault_var.set(self.isdefault)
-        self.set_default = tk.Checkbutton(master,
-                                          text='make default connection',
-                                          variable=self.isdefault_var)
-        self.set_default.grid(row=3, column=1)
+        self.set_default = tk.Checkbutton(master, variable=self.isdefault_var,
+                                          anchor='w')
+        self.set_default.grid(row=3, column=1, sticky='ew')
 
         self.catalog_config_frame = tk.Frame(master)
-        self.catalog_config_frame.grid(row=4, sticky='nsew')
+        self.catalog_config_frame.grid(row=4, column=1, sticky='nsew')
 
         self.catalog_type_changed(catalog_config=self.catalog_config)
         self.catalog_cbox.bind('<<ComboboxSelected>>',
                                self.catalog_type_changed)
 
         self.result = None
+
+        return self.name
 
     def apply(self):
         self.result = collections.OrderedDict([
@@ -114,6 +120,7 @@ class ConnectionConfigDialog(tksimpledialog.Dialog, object):
         self.catalog_config_frame = form.FormFrame(master)
         self.catalog_config_frame.grid_fields(self.config_fields.values(),
                                               False)
+        self.catalog_config_frame.columnconfigure(1, weight=1)
         self.catalog_config_frame.grid(row=4, columnspan=2, sticky='nsew')
 
 
@@ -302,7 +309,7 @@ class ColumnManager(tk.Frame):
         self.cfg[config.SETTINGS]['display_columns'] = ','.join(displayed)
 
 
-class Preferences(tksimpledialog.Dialog):
+class Preferences(BrocoliDialog):
     """
     Preferences dialog
     """
@@ -311,10 +318,12 @@ class Preferences(tksimpledialog.Dialog):
         self.old_cfg = copy.deepcopy(self.cfg)
 
         self.notebook = ttk.Notebook(master)
-        self.notebook.pack()
+        self.notebook.pack(expand=True, fill=tk.BOTH, side=tk.TOP)
+
+        self.notebook.rowconfigure(0, weight=1)
+        self.notebook.columnconfigure(0, weight=1)
 
         self.connection_manager = ConnectionManager(self.notebook, self.cfg)
-        self.connection_manager.grid(row=0)
 
         self.notebook.add(self.connection_manager, text='Connections')
 
@@ -323,6 +332,8 @@ class Preferences(tksimpledialog.Dialog):
         self.notebook.add(self.column_manager, text='Display')
 
         self.changed = False
+
+        return self.notebook
 
     def apply(self):
         if self.cfg != self.old_cfg:

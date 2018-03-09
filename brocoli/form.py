@@ -48,7 +48,8 @@ class FormField(object):
         """
         Returns a pair consisting of a label and an "entry" widget
         """
-        return tk.Label(master, text=self.text), self.get_widget(master)
+        return (tk.Label(master, text=self.text, anchor='e'),
+                self.get_widget(master))
 
     def disables(self):
         """
@@ -191,12 +192,9 @@ class BooleanField(FormField):
         def changed(*args):
             master.disenables_changed(self)
 
-        return tk.Checkbutton(master, text=self.text, variable=self.var,
+        return tk.Checkbutton(master, variable=self.var,
                               onvalue=True, offvalue=False,
-                              command=changed)
-
-    def get_widgets(self, master):
-        return (self.get_widget(master), )
+                              command=changed, anchor='w')
 
     def disables(self):
         return self.disables_tags
@@ -257,7 +255,6 @@ class RadioChoiceField(FormField):
 
     def reset(self):
         self.var.set(self.default_value)
-
 
     def from_string(self, s):
         self.var.set(s)
@@ -342,7 +339,7 @@ class FormFrame(tk.Frame, object):
                     v.append(w)
                     tag_dict[t] = v
 
-                w.grid(row=i, column=j)
+                w.grid(row=i, column=j, sticky='ew')
                 j += 1
             if i == 0 and focus_first:
                 widgets[-1].focus_set()
