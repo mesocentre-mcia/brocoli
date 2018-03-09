@@ -314,9 +314,11 @@ class FileSelectorField(TextField):
         frame = FieldContainer(master)
 
         entry = tk.Entry(frame, textvariable=self.var)
-        entry.grid(row=0, column=0)
+        entry.grid(row=0, column=0, sticky='ew')
         but = tk.Button(frame, text='browse', command=self.command)
         but.grid(row=0, column=1)
+
+        frame.columnconfigure(0, weight=1)
 
         return frame
 
