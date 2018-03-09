@@ -9,6 +9,7 @@ import copy
 from . import form
 from . dialog import BrocoliDialog
 
+
 class ColumnDef(object):
     def __init__(self, name, text, anchor='w', form_field=None):
         self.name = name
