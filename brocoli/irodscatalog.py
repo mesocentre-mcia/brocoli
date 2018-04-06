@@ -6,6 +6,7 @@ from . import catalog
 from . import form
 from . import exceptions
 from . listmanager import ColumnDef, List
+from . config_option import option_is_true
 
 import re
 import os
@@ -808,7 +809,7 @@ class iRODSCatalog4(iRODSCatalogBase):
                                tags=ssl_tags)),
             ('irods_ssl_ca_certificate_file',
              form.FileSelectorField('irods_ssl_ca_certificate_file:',
-                            tags=ssl_tags)),
+                                    tags=ssl_tags)),
         ])
 
         base_dict.update(ssl_options)
@@ -841,14 +842,7 @@ def irods3_catalog_from_config(cfg):
     """
     Creates an iRODSCatalog from configuration
     """
-    use_env = False
-    if cfg['use_irods_env'].lower() in ['1', 'yes', 'on', 'true']:
-        use_env = True
-    elif cfg['use_irods_env'].lower() in ['0', 'no', 'off', 'false']:
-        use_env = False
-    else:
-        msg = 'invalid irods_use_env value: {}'.format(cfg['use_irods_env'])
-        raise ValueError(msg)
+    use_env = option_is_true(cfg['use_irods_env'])
 
     if use_env:
         envfile = os.path.join(os.path.expanduser('~'), '.irods', '.irodsEnv')
@@ -866,7 +860,7 @@ def irods3_catalog_from_config(cfg):
 
     store_password = cfg['store_password']
     scrambled_password = None
-    if store_password.lower() in ['1', 'yes', 'on', 'true']:
+    if option_is_true(store_password):
         scrambled_password = cfg['password']
         return lambda master: iRODSCatalog3(host, port, user, zone,
                                             scrambled_password, default_resc)
@@ -918,14 +912,7 @@ def irods4_catalog_from_config(cfg):
     """
     Creates an iRODSCatalog from configuration
     """
-    use_env = False
-    if cfg['use_irods_env'].lower() in ['1', 'yes', 'on', 'true']:
-        use_env = True
-    elif cfg['use_irods_env'].lower() in ['0', 'no', 'off', 'false']:
-        use_env = False
-    else:
-        msg = 'invalid irods_use_env value: {}'.format(cfg['use_irods_env'])
-        raise ValueError(msg)
+    use_env = option_is_true(cfg['use_irods_env'])
 
     if use_env:
         envfile = os.path.join(os.path.expanduser('~'), '.irods',
@@ -938,7 +925,7 @@ def irods4_catalog_from_config(cfg):
     zone = cfg['zone']
 
     ssl = None
-    if cfg['use_irods_ssl']:
+    if option_is_true(cfg['use_irods_ssl']):
         ssl = {
             'irods_client_server_negotiation': 'request_server_negotiation',
             'irods_client_server_policy': 'CS_NEG_REQUIRE',
@@ -959,7 +946,7 @@ def irods4_catalog_from_config(cfg):
 
     store_password = cfg['store_password']
     scrambled_password = None
-    if store_password.lower() in ['1', 'yes', 'on', 'true']:
+    if option_is_true(store_password):
         scrambled_password = cfg['password']
         return lambda master: iRODSCatalog4.from_options(host, port, user,
                                                          zone,
