@@ -108,6 +108,11 @@ class ListManager(tk.Frame):
                                      state=tk.DISABLED)
             self.editbut.grid(row=2, column=0, sticky='ew')
 
+            self.duplicatebut = tk.Button(butbox, text='duplicate',
+                                          command=self.duplicate,
+                                          state=tk.DISABLED)
+            self.duplicatebut.grid(row=3, column=0, sticky='ew')
+
         self.rowconfigure(0, weight=1)
         self.columnconfigure(0, weight=1)
         self.grid(sticky='nsew')
@@ -121,10 +126,10 @@ class ListManager(tk.Frame):
         self.items = collections.OrderedDict([(v['#0'], v) for v in rows])
 
         for v in rows:
-            rows = [v[c] for c in self.columns_def if c != '#0' and c != 'iid']
+            values = [v[c] for c in self.columns_def if c != '#0' and c != 'iid']
             iid = v.get('iid', v['#0'])
             root_node = self.tree.insert('', 'end', iid=iid, text=v['#0'],
-                                         open=True, values=rows)
+                                         open=True, values=values)
 
     def add(self):
         n = ItemConfigDialog(self.master, self.fields)
@@ -134,8 +139,8 @@ class ListManager(tk.Frame):
 
         name = new['#0']
         self.items[name] = new
-        rows = [v for k, v in self.items[name].items() if k != '#0']
-        self.tree.insert('', 'end', iid=name, text=name, values=rows)
+        values = [v for k, v in self.items[name].items() if k != '#0']
+        self.tree.insert('', 'end', iid=name, text=name, values=values)
 
         self.add_cb(new)
 
@@ -149,24 +154,48 @@ class ListManager(tk.Frame):
         self.tree.selection_set('')
         self.tree.delete(selected)
 
-    def edit(self):
+    def edit(self, duplicate=False):
         selected = self.tree.selection()[0]
         item = self.items[selected]
+
+        if duplicate:
+            item = copy.deepcopy(item)
+            item['#0'] = item['#0'] + ' (copy)'
 
         icd = ItemConfigDialog(self.master, self.fields, item)
 
         if icd.result is None:
             return
 
-        # update list display
-        self.items[selected] = icd.result
-        rows = [v for k, v in self.items[selected].items() if k != '#0']
-        self.tree.item(selected, text=icd.result['#0'], values=rows)
+        new_name = icd.result['#0']
 
-        self.edit_cb(icd.result)
+        # update list display
+        self.items[new_name] = icd.result
+        values = [v for k, v in icd.result.items() if k != '#0']
+
+        duped = False
+
+        if new_name != selected:
+            if not duplicate:
+                self.tree.delete(selected)
+            else:
+                duped = True
+
+            self.tree.insert('', 'end', iid=new_name, text=new_name,
+                             values=values)
+        else:
+            self.tree.item(selected, text=selected, values=values)
+
+        if duped:
+            self.add_cb(icd.result)
+        else:
+            self.edit_cb(icd.result)
+
+    def duplicate(self):
+        self.edit(duplicate=True)
 
     def selchanged(self, event):
-        buts = [b for b in [self.editbut, self.removebut] if b is not None]
+        buts = [b for b in [self.editbut, self.removebut, self.duplicatebut] if b is not None]
         if self.tree.selection():
             for b in buts:
                 b.config(state=tk.NORMAL)
