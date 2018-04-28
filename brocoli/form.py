@@ -33,11 +33,17 @@ class FormField(object):
         """
         raise NotImplementedError
 
+    def contents_from_config(self, config):
+        pass
+
     def to_string(self):
         """
         Translates field value to string
         """
         raise NotImplementedError
+
+    def get_contents(self):
+        return {}
 
     def get_widget(self, master):
         """
@@ -385,6 +391,10 @@ class FormFrame(tk.Frame, object):
         for enabler in enablers:
             self.set_enables(enabler)
 
+    def ungrid_fields(self):
+        for s in self.grid_slaves():
+            s.grid_remove()
+
     def set_disables(self, field):
         tags = self.disablers[field]
 
@@ -420,6 +430,58 @@ class FormFrame(tk.Frame, object):
             self.set_enables(field)
         if field in self.disablers:
             self.set_disables(field)
+
+
+class CboxSubForm(ComboboxChoiceField):
+    def __init__(self, text, item_dict, default_value=None, tags=None):
+        super(CboxSubForm, self).__init__(text, item_dict.keys(),
+                                          default_value, tags=tags)
+
+        self.item_dict = item_dict
+
+    def get_widget(self, master):
+        frame = FieldContainer(master)
+
+        cbox = ttk.Combobox(frame, values=self.values, textvariable=self.var)
+        cbox.grid(row=0, column=0, sticky='ew')
+
+        ff = FormFrame(frame)
+        ff.grid(row=1, column=0, sticky='ew')
+
+        def changed(event=None):
+            item = cbox.get()
+            config_fields = self.item_dict[item]
+
+            ff.ungrid_fields()
+
+            ff.grid_fields(config_fields.values(), False)
+
+        changed()
+        cbox.bind('<<ComboboxSelected>>', changed)
+
+        frame.columnconfigure(0, weight=1)
+
+
+        return frame
+
+    def contents_from_config(self, config):
+        choice = self.var.get()
+
+        for key, field in self.item_dict[choice].items():
+            field.from_string(config[key])
+            field.contents_from_config(config)
+
+    def get_contents(self):
+        ret = {}
+
+        choice = self.var.get()
+
+
+        for key, field in self.item_dict[choice].items():
+            ret[key] = field.to_string()
+            ret.update(field.get_contents())
+
+        return ret
 
 if __name__ == '__main__':
     master = tk.Tk()

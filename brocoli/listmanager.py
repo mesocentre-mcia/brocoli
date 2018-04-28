@@ -30,11 +30,11 @@ class ItemConfigDialog(BrocoliDialog):
         super(ItemConfigDialog, self).__init__(master, **kwargs)
 
     def body(self, master):
-
         if self.item_config is not None:
             for k, ff in self.item_fields.items():
                 if k in self.item_config:
                     ff.from_string(self.item_config[k])
+                    ff.contents_from_config(self.item_config)
 
         self.item_frame = form.FormFrame(master)
         self.item_frame.grid_fields(self.item_fields.values(), False)
@@ -50,7 +50,7 @@ class ItemConfigDialog(BrocoliDialog):
 
         for k, ff in self.item_fields.items():
             self.result[k] = ff.to_string()
-
+            self.result.update(ff.get_contents())
 
 class ListManager(tk.Frame):
     def __init__(self, master, columns_def, add_cb=None, remove_cb=None,
