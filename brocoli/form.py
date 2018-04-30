@@ -287,10 +287,10 @@ class ComboboxChoiceField(FormField):
     def __init__(self, text, values, default_value=None, tags=None):
         super(ComboboxChoiceField, self).__init__(text, tags=tags)
 
-        self.values = values
+        self.values = list(values)
         self.var = tk.StringVar()
         if default_value is None:
-            default_value = values[0]
+            default_value = self.values[0]
 
         self.default_value = default_value
         self.reset()
