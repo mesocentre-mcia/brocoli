@@ -90,6 +90,7 @@ class ListManager(tk.Frame):
         self.newbut = None
         self.removebut = None
         self.editbut = None
+        self.duplicatebut = None
 
         self.add_cb = add_cb
         if add_cb is not None:
