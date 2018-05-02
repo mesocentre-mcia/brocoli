@@ -124,11 +124,12 @@ class ListManager(tk.Frame):
         for child in self.tree.get_children():
             self.tree.delete(child)
 
-        self.items = collections.OrderedDict([(v['#0'], v) for v in rows])
+        self.items = collections.OrderedDict([(v.get('iid', v['#0']), v) for v in rows])
 
         for v in rows:
             values = [v[c] for c in self.columns_def if c != '#0' and c != 'iid']
             iid = v.get('iid', v['#0'])
+            print_("populate", v, iid)
             root_node = self.tree.insert('', 'end', iid=iid, text=v['#0'],
                                          open=True, values=values)
 
@@ -138,12 +139,15 @@ class ListManager(tk.Frame):
         if new is None:
             return
 
-        name = new['#0']
-        self.items[name] = new
-        values = [v for k, v in self.items[name].items() if k != '#0']
-        self.tree.insert('', 'end', iid=name, text=name, values=values)
+        # add_cb should return new iid or None
+        iid = self.add_cb(new)
 
-        self.add_cb(new)
+        name = new['#0']
+        iid = iid or name
+
+        self.items[iid] = new
+        values = [v for k, v in self.items[iid].items() if k != '#0']
+        self.tree.insert('', 'end', iid=iid or name, text=name, values=values)
 
     def remove(self):
         selected = self.tree.selection()[0]
@@ -206,12 +210,17 @@ class ListManager(tk.Frame):
 
 
 class List(object):
-    def __init__(self, column_defs, rows=[]):
+    def __init__(self, column_defs, rows=[], add_cb=None, remove_cb=None,
+                 edit_cb=None):
         self.column_defs = column_defs
         self.rows = rows
+        self.add_cb = add_cb
+        self.remove_cb = remove_cb
+        self.edit_cb = edit_cb
 
     def get_widget(self, master):
-        lm = ListManager(master, self.column_defs)
+        lm = ListManager(master, self.column_defs, add_cb=self.add_cb,
+                         remove_cb=self.remove_cb, edit_cb=self.edit_cb)
         lm.populate(self.rows)
 
         return lm
