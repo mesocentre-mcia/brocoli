@@ -563,7 +563,28 @@ class iRODSCatalog(catalog.Catalog):
             md['iid'] = md['avu_id']
             md['#0'] = md['name']
 
-        return List(iRODSCatalog.metadata_def(), metadata)
+        def add(result):
+            name = result['#0']
+            value = result['value']
+            units = result['units']
+
+            obj.metadata.add(name, value, units)
+
+            for md in obj.metadata.items():
+                if md.name == name and md.value and md.units == units:
+                    return md.avu_id
+
+            return None
+
+        def remove(result):
+            name = result['#0']
+            value = result['value']
+            unit = result['units']
+
+            obj.metadata.remove(name, value, unit)
+
+        return List(iRODSCatalog.metadata_def(), metadata, add_cb=add,
+                    remove_cb=remove)
 
     @translate_exceptions
     def directory_properties(self, path):
@@ -628,11 +649,11 @@ class iRODSCatalog(catalog.Catalog):
     @classmethod
     def metadata_def(cls):
         name = ColumnDef('#0', 'Name',
-                         form_field=form.IntegerField('Metadata name:'))
+                         form_field=form.TextField('Metadata name:'))
         value = ColumnDef('value', 'Value',
-                          form_field=form.IntegerField('Metadata value:'))
+                          form_field=form.TextField('Metadata value:'))
         unit = ColumnDef('units', 'Unit',
-                         form_field=form.IntegerField('Metadata unit:'))
+                         form_field=form.TextField('Metadata unit:'))
 
         cols = [name, value, unit]
 
