@@ -129,7 +129,7 @@ class ListManager(tk.Frame):
         for v in rows:
             values = [v[c] for c in self.columns_def if c != '#0' and c != 'iid']
             iid = v.get('iid', v['#0'])
-            print_("populate", v, iid)
+
             root_node = self.tree.insert('', 'end', iid=iid, text=v['#0'],
                                          open=True, values=values)
 
