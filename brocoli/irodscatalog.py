@@ -575,7 +575,34 @@ class iRODSCatalog(catalog.Catalog):
                                                 'access_name']])
             a['#0'] = a['user_name']
 
-        return List(iRODSCatalog.acls_def(), acls)
+
+        @function_translate_exceptions
+        def add(result):
+            access_name = result['access_name']
+            user_name = result['#0']
+            user_zone = result['user_zone']
+
+            acl = irods.access.iRODSAccess(access_name, obj.path, user_name,
+                                           user_zone)
+
+            self.session.permissions.set(acl)
+
+            return '#'.join([user_name, user_zone, access_name])
+
+        @function_translate_exceptions
+        def remove(result):
+            user_name = result['#0']
+            user_zone = result['user_zone']
+
+            acl = irods.access.iRODSAccess('null', obj.path, user_name,
+                                           user_zone)
+
+            self.session.permissions.set(acl)
+
+        iscoll = isinstance(obj, irods.collection.iRODSCollection)
+        acls_def = iRODSCatalog.acls_def(self.session.zone, iscoll)
+
+        return List(acls_def, acls, add_cb=add, remove_cb=remove)
 
     def __metadata_from_object(self, obj):
         metadata = [md.__dict__.copy() for md in obj.metadata.items()]
@@ -658,12 +685,17 @@ class iRODSCatalog(catalog.Catalog):
         return collections.OrderedDict([(cd.name, cd) for cd in cols])
 
     @classmethod
-    def acls_def(cls):
+    def acls_def(cls, default_zone='', collection=False):
         user = ColumnDef('#0', 'User', form_field=form.TextField('User:'))
         zone = ColumnDef('user_zone', 'Zone',
-                         form_field=form.TextField('User zone:'))
+                         form_field=form.TextField('User zone:', default_zone))
+        access_types = ['read', 'write', 'own']
+        if collection:
+            access_types.append('inherit')
         type = ColumnDef('access_name', 'Access type',
-                         form_field=form.TextField('Acces type:'))
+                         form_field=form.ComboboxChoiceField('Acces type:',
+                                                             access_types,
+                                                             access_types[0]))
 
         cols = [user, zone, type]
 
