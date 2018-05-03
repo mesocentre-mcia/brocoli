@@ -93,7 +93,7 @@ def local_files_stats(files):
     return len(files), sum(os.path.getsize(f) for f in files)
 
 
-def translate_exceptions(method):
+def method_translate_exceptions(method):
     """
     Method decorator that translates iRODS to Brocoli exceptions
     """
@@ -106,8 +106,29 @@ def translate_exceptions(method):
             raise exceptions.NetworkError(e)
         except irods.exception.CAT_UNKNOWN_COLLECTION as e:
             raise exceptions.FileNotFoundError(e)
+        except irods.exception.CAT_SQL_ERR as e:
+            raise exceptions.CatalogLogicError(e)
 
     return method_wrapper
+
+
+def function_translate_exceptions(func):
+    """
+    Function decorator that translates iRODS to Brocoli exceptions
+    """
+    def function_wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except irods.exception.CAT_INVALID_AUTHENTICATION as e:
+            raise exceptions.ConnectionError(e)
+        except irods.exception.NetworkException as e:
+            raise exceptions.NetworkError(e)
+        except irods.exception.CAT_UNKNOWN_COLLECTION as e:
+            raise exceptions.FileNotFoundError(e)
+        except irods.exception.CAT_SQL_ERR as e:
+            raise exceptions.CatalogLogicError(e)
+
+    return function_wrapper
 
 
 class iRODSCatalog(catalog.Catalog):
@@ -169,7 +190,7 @@ class iRODSCatalog(catalog.Catalog):
 
         return normpath or '/'
 
-    @translate_exceptions
+    @method_translate_exceptions
     def lstat(self, path):
         if self.isdir(path):
             return self.lstat_dir(path)
@@ -282,7 +303,7 @@ class iRODSCatalog(catalog.Catalog):
 
         return ret
 
-    @translate_exceptions
+    @method_translate_exceptions
     def listdir(self, path):
         q = self.session.query(DataObject.name).filter(Collection.name == path)
         files = [r[DataObject.name] for r in q.all()]
@@ -296,7 +317,7 @@ class iRODSCatalog(catalog.Catalog):
 
         return ret
 
-    @translate_exceptions
+    @method_translate_exceptions
     def isdir(self, path):
         q = self.session.query(Collection.id).filter(Collection.name == path)
 
@@ -349,7 +370,7 @@ class iRODSCatalog(catalog.Catalog):
 
         return nfiles, size
 
-    @translate_exceptions
+    @method_translate_exceptions
     def download_files(self, pathlist, destdir):
         nfiles, size = self.remote_files_stats(pathlist)
 
@@ -402,7 +423,7 @@ class iRODSCatalog(catalog.Catalog):
             for y in self._download_coll(subcoll, destdir):
                 yield y
 
-    @translate_exceptions
+    @method_translate_exceptions
     def download_directories(self, pathlist, destdir):
         nfiles, size = self.remote_trees_stats(pathlist)
 
@@ -413,7 +434,7 @@ class iRODSCatalog(catalog.Catalog):
                 completed += y
                 yield completed, size
 
-    @translate_exceptions
+    @method_translate_exceptions
     def upload_files(self, files, path):
         nfiles, size = local_files_stats(files)
 
@@ -506,7 +527,7 @@ class iRODSCatalog(catalog.Catalog):
             for y in self._upload_dir(abspath, cpath):
                 yield y
 
-    @translate_exceptions
+    @method_translate_exceptions
     def upload_directories(self, dirs, path):
         nfiles, size = local_trees_stats(dirs)
 
@@ -519,7 +540,7 @@ class iRODSCatalog(catalog.Catalog):
                 completed += s
                 yield completed, size
 
-    @translate_exceptions
+    @method_translate_exceptions
     def delete_files(self, files):
         number = len(files)
 
@@ -529,7 +550,7 @@ class iRODSCatalog(catalog.Catalog):
             i += 1
             yield i, number
 
-    @translate_exceptions
+    @method_translate_exceptions
     def delete_directories(self, directories):
         number = len(directories)
 
@@ -539,7 +560,7 @@ class iRODSCatalog(catalog.Catalog):
             i += 1
             yield i, number
 
-    @translate_exceptions
+    @method_translate_exceptions
     def mkdir(self, path):
         self.cm.create(path)
 
@@ -563,6 +584,7 @@ class iRODSCatalog(catalog.Catalog):
             md['iid'] = md['avu_id']
             md['#0'] = md['name']
 
+        @function_translate_exceptions
         def add(result):
             name = result['#0']
             value = result['value']
@@ -576,6 +598,7 @@ class iRODSCatalog(catalog.Catalog):
 
             return None
 
+        @function_translate_exceptions
         def remove(result):
             name = result['#0']
             value = result['value']
@@ -586,7 +609,7 @@ class iRODSCatalog(catalog.Catalog):
         return List(iRODSCatalog.metadata_def(), metadata, add_cb=add,
                     remove_cb=remove)
 
-    @translate_exceptions
+    @method_translate_exceptions
     def directory_properties(self, path):
         co = self.cm.get(path)
         acls_list = self.__acls_from_object(co)
@@ -597,7 +620,7 @@ class iRODSCatalog(catalog.Catalog):
             ('Metadata', metadata_list),
         ])
 
-    @translate_exceptions
+    @method_translate_exceptions
     def file_properties(self, path):
         do = self.dom.get(path)
         replicas = [r.__dict__.copy() for r in do.replicas]

@@ -8,7 +8,7 @@ import copy
 
 from . import form
 from . dialog import BrocoliDialog
-
+from . exceptions import handle_catalog_exceptions
 
 class ColumnDef(object):
     def __init__(self, name, text, anchor='w', form_field=None, display=True):
@@ -133,6 +133,7 @@ class ListManager(tk.Frame):
             root_node = self.tree.insert('', 'end', iid=iid, text=v['#0'],
                                          open=True, values=values)
 
+    @handle_catalog_exceptions
     def add(self):
         n = ItemConfigDialog(self.master, self.fields)
         new = n.result
