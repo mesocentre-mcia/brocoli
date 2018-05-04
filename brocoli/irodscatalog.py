@@ -599,8 +599,7 @@ class iRODSCatalog(catalog.Catalog):
 
             self.session.permissions.set(acl)
 
-        iscoll = isinstance(obj, irods.collection.iRODSCollection)
-        acls_def = iRODSCatalog.acls_def(self.session.zone, iscoll)
+        acls_def = iRODSCatalog.acls_def(self.session.zone)
 
         return List(acls_def, acls, add_cb=add, remove_cb=remove)
 
@@ -685,13 +684,11 @@ class iRODSCatalog(catalog.Catalog):
         return collections.OrderedDict([(cd.name, cd) for cd in cols])
 
     @classmethod
-    def acls_def(cls, default_zone='', collection=False):
+    def acls_def(cls, default_zone=''):
         user = ColumnDef('#0', 'User', form_field=form.TextField('User:'))
         zone = ColumnDef('user_zone', 'Zone',
                          form_field=form.TextField('User zone:', default_zone))
         access_types = ['read', 'write', 'own']
-        if collection:
-            access_types.append('inherit')
         type = ColumnDef('access_name', 'Access type',
                          form_field=form.ComboboxChoiceField('Acces type:',
                                                              access_types,
