@@ -1,8 +1,10 @@
 Brocoli: Browse Collections for iRODS
 ======================================
 
-Brocoli application allows users to browse iRODS catalog collections in a simple
+Brocoli_ application allows users to browse iRODS catalog collections in a simple
 Tkinter GUI.
+
+.. _Brocoli: https://github.com/mesocentre-mcia/brocoli
 
 Install Brocoli
 ---------------
@@ -10,8 +12,7 @@ Install Brocoli
 Pre-requisites
 ^^^^^^^^^^^^^^
 
-For now, Brocoli runs on Linux platforms. There may be Microsoft Windows support
-in a not-so-far future.
+Brocoli runs on Linux platforms. Windows and MacOS support is experimental.
 
 Brocoli needs a Python installation with Tkinter. Under
 `Ubuntu <http://www.ubuntu.com>`, you may have to install a specific package to
@@ -25,7 +26,7 @@ Dependencies
 Brocoli depends on the following packages:
 
 - six: https://pypi.python.org/pypi/six
-- python-irodsclient: https://pypi.python.org/pypi/python-irodsclient
+- python-irodsclient >= 0.8.0: https://pypi.python.org/pypi/python-irodsclient
 
 Installing with pip
 ^^^^^^^^^^^^^^^^^^^
