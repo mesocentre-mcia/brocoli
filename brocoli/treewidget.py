@@ -3,6 +3,7 @@ from . progress_dialog import ProgressDialog
 from . progress_dialog import progress_from_generator as progress
 from . progress_dialog import unbounded_progress_from_generator as uprogress
 from . exceptions import handle_catalog_exceptions
+from . import exceptions
 from . import navbar
 from . listmanager import ColumnDef
 

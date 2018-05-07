@@ -115,6 +115,25 @@ def method_translate_exceptions(method):
     return method_wrapper
 
 
+def function_translate_exceptions(func):
+    """
+    Function decorator that translates iRODS to Brocoli exceptions
+    """
+    def function_wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except irods.exception.CAT_INVALID_AUTHENTICATION as e:
+            raise exceptions.ConnectionError(e)
+        except irods.exception.NetworkException as e:
+            raise exceptions.NetworkError(e)
+        except irods.exception.CAT_UNKNOWN_COLLECTION as e:
+            raise exceptions.FileNotFoundError(e)
+        except irods.exception.CAT_SQL_ERR as e:
+            raise exceptions.CatalogLogicError(e)
+
+    return function_wrapper
+
+
 class iRODSCatalogBase(catalog.Catalog):
     """
     A base class Catalog for connecting to iRODS
@@ -585,7 +604,7 @@ class iRODSCatalogBase(catalog.Catalog):
 
             self.session.permissions.set(acl)
 
-        acls_def = iRODSCatalog.acls_def(self.session.zone)
+        acls_def = iRODSCatalogBase.acls_def(self.session.zone)
 
         return List(acls_def, acls, add_cb=add, remove_cb=remove)
 
@@ -618,7 +637,7 @@ class iRODSCatalogBase(catalog.Catalog):
 
             obj.metadata.remove(name, value, unit)
 
-        return List(iRODSCatalog.metadata_def(), metadata, add_cb=add,
+        return List(iRODSCatalogBase.metadata_def(), metadata, add_cb=add,
                     remove_cb=remove)
 
     @method_translate_exceptions
