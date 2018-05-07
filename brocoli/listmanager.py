@@ -10,6 +10,7 @@ from . import form
 from . dialog import BrocoliDialog
 from . exceptions import handle_catalog_exceptions
 
+
 class ColumnDef(object):
     def __init__(self, name, text, anchor='w', form_field=None, display=True):
         self.name = name
@@ -51,6 +52,7 @@ class ItemConfigDialog(BrocoliDialog):
         for k, ff in self.item_fields.items():
             self.result[k] = ff.to_string()
             self.result.update(ff.get_contents())
+
 
 class ListManager(tk.Frame):
     def __init__(self, master, columns_def, add_cb=None, remove_cb=None,
@@ -124,10 +126,12 @@ class ListManager(tk.Frame):
         for child in self.tree.get_children():
             self.tree.delete(child)
 
-        self.items = collections.OrderedDict([(v.get('iid', v['#0']), v) for v in rows])
+        self.items = collections.OrderedDict([(v.get('iid', v['#0']), v)
+                                              for v in rows])
 
         for v in rows:
-            values = [v[c] for c in self.columns_def if c != '#0' and c != 'iid']
+            values = [v[c] for c in self.columns_def
+                      if c != '#0' and c != 'iid']
             iid = v.get('iid', v['#0'])
 
             root_node = self.tree.insert('', 'end', iid=iid, text=v['#0'],
@@ -201,7 +205,8 @@ class ListManager(tk.Frame):
         self.edit(duplicate=True)
 
     def selchanged(self, event):
-        buts = [b for b in [self.editbut, self.removebut, self.duplicatebut] if b is not None]
+        buts = [b for b in [self.editbut, self.removebut, self.duplicatebut]
+                if b is not None]
         if self.tree.selection():
             for b in buts:
                 b.config(state=tk.NORMAL)
