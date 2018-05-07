@@ -93,7 +93,7 @@ def local_files_stats(files):
     return len(files), sum(os.path.getsize(f) for f in files)
 
 
-def translate_exceptions(method):
+def method_translate_exceptions(method):
     """
     Method decorator that translates iRODS to Brocoli exceptions
     """
@@ -106,8 +106,29 @@ def translate_exceptions(method):
             raise exceptions.NetworkError(e)
         except irods.exception.CAT_UNKNOWN_COLLECTION as e:
             raise exceptions.FileNotFoundError(e)
+        except irods.exception.CAT_SQL_ERR as e:
+            raise exceptions.CatalogLogicError(e)
 
     return method_wrapper
+
+
+def function_translate_exceptions(func):
+    """
+    Function decorator that translates iRODS to Brocoli exceptions
+    """
+    def function_wrapper(*args, **kwargs):
+        try:
+            return func(*args, **kwargs)
+        except irods.exception.CAT_INVALID_AUTHENTICATION as e:
+            raise exceptions.ConnectionError(e)
+        except irods.exception.NetworkException as e:
+            raise exceptions.NetworkError(e)
+        except irods.exception.CAT_UNKNOWN_COLLECTION as e:
+            raise exceptions.FileNotFoundError(e)
+        except irods.exception.CAT_SQL_ERR as e:
+            raise exceptions.CatalogLogicError(e)
+
+    return function_wrapper
 
 
 class iRODSCatalog(catalog.Catalog):
@@ -169,7 +190,7 @@ class iRODSCatalog(catalog.Catalog):
 
         return normpath or '/'
 
-    @translate_exceptions
+    @method_translate_exceptions
     def lstat(self, path):
         if self.isdir(path):
             return self.lstat_dir(path)
@@ -282,7 +303,7 @@ class iRODSCatalog(catalog.Catalog):
 
         return ret
 
-    @translate_exceptions
+    @method_translate_exceptions
     def listdir(self, path):
         q = self.session.query(DataObject.name).filter(Collection.name == path)
         files = [r[DataObject.name] for r in q.all()]
@@ -296,7 +317,7 @@ class iRODSCatalog(catalog.Catalog):
 
         return ret
 
-    @translate_exceptions
+    @method_translate_exceptions
     def isdir(self, path):
         q = self.session.query(Collection.id).filter(Collection.name == path)
 
@@ -349,7 +370,7 @@ class iRODSCatalog(catalog.Catalog):
 
         return nfiles, size
 
-    @translate_exceptions
+    @method_translate_exceptions
     def download_files(self, pathlist, destdir):
         nfiles, size = self.remote_files_stats(pathlist)
 
@@ -402,7 +423,7 @@ class iRODSCatalog(catalog.Catalog):
             for y in self._download_coll(subcoll, destdir):
                 yield y
 
-    @translate_exceptions
+    @method_translate_exceptions
     def download_directories(self, pathlist, destdir):
         nfiles, size = self.remote_trees_stats(pathlist)
 
@@ -413,7 +434,7 @@ class iRODSCatalog(catalog.Catalog):
                 completed += y
                 yield completed, size
 
-    @translate_exceptions
+    @method_translate_exceptions
     def upload_files(self, files, path):
         nfiles, size = local_files_stats(files)
 
@@ -506,7 +527,7 @@ class iRODSCatalog(catalog.Catalog):
             for y in self._upload_dir(abspath, cpath):
                 yield y
 
-    @translate_exceptions
+    @method_translate_exceptions
     def upload_directories(self, dirs, path):
         nfiles, size = local_trees_stats(dirs)
 
@@ -519,7 +540,7 @@ class iRODSCatalog(catalog.Catalog):
                 completed += s
                 yield completed, size
 
-    @translate_exceptions
+    @method_translate_exceptions
     def delete_files(self, files):
         number = len(files)
 
@@ -529,7 +550,7 @@ class iRODSCatalog(catalog.Catalog):
             i += 1
             yield i, number
 
-    @translate_exceptions
+    @method_translate_exceptions
     def delete_directories(self, directories):
         number = len(directories)
 
@@ -539,7 +560,7 @@ class iRODSCatalog(catalog.Catalog):
             i += 1
             yield i, number
 
-    @translate_exceptions
+    @method_translate_exceptions
     def mkdir(self, path):
         self.cm.create(path)
 
@@ -554,7 +575,33 @@ class iRODSCatalog(catalog.Catalog):
                                                 'access_name']])
             a['#0'] = a['user_name']
 
-        return List(iRODSCatalog.acls_def(), acls)
+
+        @function_translate_exceptions
+        def add(result):
+            access_name = result['access_name']
+            user_name = result['#0']
+            user_zone = result['user_zone']
+
+            acl = irods.access.iRODSAccess(access_name, obj.path, user_name,
+                                           user_zone)
+
+            self.session.permissions.set(acl)
+
+            return '#'.join([user_name, user_zone, access_name])
+
+        @function_translate_exceptions
+        def remove(result):
+            user_name = result['#0']
+            user_zone = result['user_zone']
+
+            acl = irods.access.iRODSAccess('null', obj.path, user_name,
+                                           user_zone)
+
+            self.session.permissions.set(acl)
+
+        acls_def = iRODSCatalog.acls_def(self.session.zone)
+
+        return List(acls_def, acls, add_cb=add, remove_cb=remove)
 
     def __metadata_from_object(self, obj):
         metadata = [md.__dict__.copy() for md in obj.metadata.items()]
@@ -563,20 +610,59 @@ class iRODSCatalog(catalog.Catalog):
             md['iid'] = md['avu_id']
             md['#0'] = md['name']
 
-        return List(iRODSCatalog.metadata_def(), metadata)
+        @function_translate_exceptions
+        def add(result):
+            name = result['#0']
+            value = result['value']
+            units = result['units']
 
-    @translate_exceptions
+            obj.metadata.add(name, value, units)
+
+            for md in obj.metadata.items():
+                if md.name == name and md.value and md.units == units:
+                    return md.avu_id
+
+            return None
+
+        @function_translate_exceptions
+        def remove(result):
+            name = result['#0']
+            value = result['value']
+            unit = result['units']
+
+            obj.metadata.remove(name, value, unit)
+
+        return List(iRODSCatalog.metadata_def(), metadata, add_cb=add,
+                    remove_cb=remove)
+
+    @method_translate_exceptions
     def directory_properties(self, path):
         co = self.cm.get(path)
         acls_list = self.__acls_from_object(co)
         metadata_list = self.__metadata_from_object(co)
 
+        inheritance = self.session.query(Collection.inheritance) \
+            .filter(Collection.name == path).one()[Collection.inheritance] \
+            == '1'
+
+        def inheritance_changed(value):
+            name = 'inherit' if value else 'noinherit'
+            acl = irods.access.iRODSAccess(name, path, '', '')
+
+            self.session.permissions.set(acl)
+
+
+        f = form.BooleanField('Inherit:', inheritance,
+                              state_change_cb=inheritance_changed)
+        inherit_frame = form.FrameGenerator([f])
+
         return collections.OrderedDict([
             ('Permissions', acls_list),
             ('Metadata', metadata_list),
+            ('Inheritance', inherit_frame),
         ])
 
-    @translate_exceptions
+    @method_translate_exceptions
     def file_properties(self, path):
         do = self.dom.get(path)
         replicas = [r.__dict__.copy() for r in do.replicas]
@@ -614,12 +700,15 @@ class iRODSCatalog(catalog.Catalog):
         return collections.OrderedDict([(cd.name, cd) for cd in cols])
 
     @classmethod
-    def acls_def(cls):
+    def acls_def(cls, default_zone=''):
         user = ColumnDef('#0', 'User', form_field=form.TextField('User:'))
         zone = ColumnDef('user_zone', 'Zone',
-                         form_field=form.TextField('User zone:'))
+                         form_field=form.TextField('User zone:', default_zone))
+        access_types = ['read', 'write', 'own']
         type = ColumnDef('access_name', 'Access type',
-                         form_field=form.TextField('Acces type:'))
+                         form_field=form.ComboboxChoiceField('Acces type:',
+                                                             access_types,
+                                                             access_types[0]))
 
         cols = [user, zone, type]
 
@@ -628,11 +717,11 @@ class iRODSCatalog(catalog.Catalog):
     @classmethod
     def metadata_def(cls):
         name = ColumnDef('#0', 'Name',
-                         form_field=form.IntegerField('Metadata name:'))
+                         form_field=form.TextField('Metadata name:'))
         value = ColumnDef('value', 'Value',
-                          form_field=form.IntegerField('Metadata value:'))
+                          form_field=form.TextField('Metadata value:'))
         unit = ColumnDef('units', 'Unit',
-                         form_field=form.IntegerField('Metadata unit:'))
+                         form_field=form.TextField('Metadata unit:'))
 
         cols = [name, value, unit]
 

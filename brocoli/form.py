@@ -33,11 +33,17 @@ class FormField(object):
         """
         raise NotImplementedError
 
+    def contents_from_config(self, config):
+        pass
+
     def to_string(self):
         """
         Translates field value to string
         """
         raise NotImplementedError
+
+    def get_contents(self):
+        return {}
 
     def get_widget(self, master):
         """
@@ -169,13 +175,14 @@ class BooleanField(FormField):
     """
     A FormField holding a bool, manifested by a tk.Checkbutton
     """
-    def __init__(self, text, default_value=False, disables_tags=None,
-                 enables_tags=None, tags=None):
+    def __init__(self, text, default_value=False, state_change_cb=None,
+                 disables_tags=None, enables_tags=None, tags=None):
         super(BooleanField, self).__init__(text, tags=tags)
 
         self.text = text
         self.var = tk.BooleanVar()
         self.default_value = default_value
+        self.state_change_cb = state_change_cb
         self.reset()
         self.disables_tags = disables_tags or []
         self.enables_tags = enables_tags or []
@@ -191,6 +198,9 @@ class BooleanField(FormField):
 
     def get_widget(self, master):
         def changed(*args):
+            if self.state_change_cb is not None:
+                self.state_change_cb(self.var.get())
+
             master.disenables_changed(self)
 
         return tk.Checkbutton(master, variable=self.var,
@@ -281,10 +291,10 @@ class ComboboxChoiceField(FormField):
     def __init__(self, text, values, default_value=None, tags=None):
         super(ComboboxChoiceField, self).__init__(text, tags=tags)
 
-        self.values = values
+        self.values = list(values)
         self.var = tk.StringVar()
         if default_value is None:
-            default_value = values[0]
+            default_value = self.values[0]
 
         self.default_value = default_value
         self.reset()
@@ -385,6 +395,10 @@ class FormFrame(tk.Frame, object):
         for enabler in enablers:
             self.set_enables(enabler)
 
+    def ungrid_fields(self):
+        for s in self.grid_slaves():
+            s.grid_remove()
+
     def set_disables(self, field):
         tags = self.disablers[field]
 
@@ -420,6 +434,70 @@ class FormFrame(tk.Frame, object):
             self.set_enables(field)
         if field in self.disablers:
             self.set_disables(field)
+
+
+class CboxSubForm(ComboboxChoiceField):
+    def __init__(self, text, item_dict, default_value=None, tags=None):
+        super(CboxSubForm, self).__init__(text, item_dict.keys(),
+                                          default_value, tags=tags)
+
+        self.item_dict = item_dict
+
+    def get_widget(self, master):
+        frame = FieldContainer(master)
+
+        cbox = ttk.Combobox(frame, values=self.values, textvariable=self.var)
+        cbox.grid(row=0, column=0, sticky='ew')
+
+        ff = FormFrame(frame)
+        ff.grid(row=1, column=0, sticky='ew')
+
+        def changed(event=None):
+            item = cbox.get()
+            config_fields = self.item_dict[item]
+
+            ff.ungrid_fields()
+
+            ff.grid_fields(config_fields.values(), False)
+
+        changed()
+        cbox.bind('<<ComboboxSelected>>', changed)
+
+        frame.columnconfigure(0, weight=1)
+
+
+        return frame
+
+    def contents_from_config(self, config):
+        choice = self.var.get()
+
+        for key, field in self.item_dict[choice].items():
+            field.from_string(config[key])
+            field.contents_from_config(config)
+
+    def get_contents(self):
+        ret = {}
+
+        choice = self.var.get()
+
+
+        for key, field in self.item_dict[choice].items():
+            ret[key] = field.to_string()
+            ret.update(field.get_contents())
+
+        return ret
+
+
+class FrameGenerator(object):
+    def __init__(self, fields):
+        self.fields = fields
+
+    def get_widget(self, master):
+        ff = FormFrame(master)
+
+        ff.grid_fields(self.fields)
+
+        return ff
 
 if __name__ == '__main__':
     master = tk.Tk()
