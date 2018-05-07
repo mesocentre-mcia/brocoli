@@ -641,9 +641,25 @@ class iRODSCatalog(catalog.Catalog):
         acls_list = self.__acls_from_object(co)
         metadata_list = self.__metadata_from_object(co)
 
+        inheritance = self.session.query(Collection.inheritance) \
+            .filter(Collection.name == path).one()[Collection.inheritance] \
+            == '1'
+
+        def inheritance_changed(value):
+            name = 'inherit' if value else 'noinherit'
+            acl = irods.access.iRODSAccess(name, path, '', '')
+
+            self.session.permissions.set(acl)
+
+
+        f = form.BooleanField('Inherit:', inheritance,
+                              state_change_cb=inheritance_changed)
+        inherit_frame = form.FrameGenerator([f])
+
         return collections.OrderedDict([
             ('Permissions', acls_list),
             ('Metadata', metadata_list),
+            ('Inheritance', inherit_frame),
         ])
 
     @method_translate_exceptions

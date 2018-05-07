@@ -175,13 +175,14 @@ class BooleanField(FormField):
     """
     A FormField holding a bool, manifested by a tk.Checkbutton
     """
-    def __init__(self, text, default_value=False, disables_tags=None,
-                 enables_tags=None, tags=None):
+    def __init__(self, text, default_value=False, state_change_cb=None,
+                 disables_tags=None, enables_tags=None, tags=None):
         super(BooleanField, self).__init__(text, tags=tags)
 
         self.text = text
         self.var = tk.BooleanVar()
         self.default_value = default_value
+        self.state_change_cb = state_change_cb
         self.reset()
         self.disables_tags = disables_tags or []
         self.enables_tags = enables_tags or []
@@ -197,6 +198,9 @@ class BooleanField(FormField):
 
     def get_widget(self, master):
         def changed(*args):
+            if self.state_change_cb is not None:
+                self.state_change_cb(self.var.get())
+
             master.disenables_changed(self)
 
         return tk.Checkbutton(master, variable=self.var,
@@ -482,6 +486,18 @@ class CboxSubForm(ComboboxChoiceField):
             ret.update(field.get_contents())
 
         return ret
+
+
+class FrameGenerator(object):
+    def __init__(self, fields):
+        self.fields = fields
+
+    def get_widget(self, master):
+        ff = FormFrame(master)
+
+        ff.grid_fields(self.fields)
+
+        return ff
 
 if __name__ == '__main__':
     master = tk.Tk()
