@@ -40,6 +40,6 @@ setup(name='brocoli',
       ],
       install_requires=[
       'six>=1.10.0',
-      'python-irodsclient>=0.7.0',
+      'python-irodsclient>=0.8.0',
       ]
      )
