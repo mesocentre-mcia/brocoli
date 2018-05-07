@@ -249,7 +249,8 @@ class ConnectionManager(tk.Frame):
 
         if new['set_default']:
             self.cfg[config.SETTINGS][config.DEFAULT_CONNECTION] = new_name
-        elif self.cfg[config.SETTINGS].get(config.DEFAULT_CONNECTION, None) == name:
+        elif self.cfg[config.SETTINGS].get(config.DEFAULT_CONNECTION, None) == \
+                name:
             del self.cfg[config.SETTINGS][config.DEFAULT_CONNECTION]
 
         del new['set_default']

@@ -651,7 +651,6 @@ class iRODSCatalog(catalog.Catalog):
 
             self.session.permissions.set(acl)
 
-
         f = form.BooleanField('Inherit:', inheritance,
                               state_change_cb=inheritance_changed)
         inherit_frame = form.FrameGenerator([f])

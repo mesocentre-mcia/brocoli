@@ -465,7 +465,6 @@ class CboxSubForm(ComboboxChoiceField):
 
         frame.columnconfigure(0, weight=1)
 
-
         return frame
 
     def contents_from_config(self, config):
@@ -479,7 +478,6 @@ class CboxSubForm(ComboboxChoiceField):
         ret = {}
 
         choice = self.var.get()
-
 
         for key, field in self.item_dict[choice].items():
             ret[key] = field.to_string()

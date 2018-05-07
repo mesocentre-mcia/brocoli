@@ -17,11 +17,14 @@ class BrocoliError(Exception):
 class ConnectionError(BrocoliError):
     pass
 
+
 class NetworkError(BrocoliError):
     pass
 
+
 class FileNotFoundError(BrocoliError):
     pass
+
 
 class CatalogLogicError(BrocoliError):
     pass
@@ -29,7 +32,6 @@ class CatalogLogicError(BrocoliError):
 
 def ioerror(no):
     return IOError(no, os.strerror(no))
-
 
 
 def handle_catalog_exceptions(method):
