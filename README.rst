@@ -66,16 +66,18 @@ This will open a dialog where you can set the connection configuration. The
 configuration fields are:
 
 * ``Connection name`` - choose a name to identify the connection
-* ``Catalog type`` - choose ``os`` or ``irods3``. Currently, ``irods3`` is the
-  only useful catalog available (``os`` is used for testing purposes only)
+* ``Catalog type`` - choose ``os``, ``irods3`` or ``irods4``. Currently,
+  ``irods*`` are the only useful catalogs available (``os`` is used for testing
+  purposes only)
 * ``Root path`` - enter the catalog path you want to base your display from
 * ``Make default connection`` - check if you want Brocoli to open this
   connection at startup
 
 ``irosd3`` specific configuration fields:
 
-* ``Use irods environment file`` - check if you want to use iRODS v3 iCommands
-  configuration file (usually ``~/.irods/.irodsEnv``)
+* ``Use irods environment file`` - check if you want to use iRODS iCommands
+  configuration file (usually ``~/.irods/.irodsEnv`` fr v3 instances and
+  ``~/.irods/irods_environment.json`` for v4)
 * ``iRODS host`` - the iRODS server DNS name you want to connect to (usually
   your iCAT Enabled Server)
 * ``iRODS port`` - depending on your iRODS instance (1247 is the default)
@@ -86,6 +88,21 @@ configuration fields are:
   (**dangerous**: although Brocoli scrambles the stored password, it may be easy
   to unscramble for someone who gained access to that value)
 * ``iRODS password``
+
+``irods4`` connections have a few extra configuration fields:
+
+* ``Use irods SSL transfer`` - check if you need SSL communication with your
+  catalog
+* ``irods_encryption_algorithm`` - SSL specific setting depending on your
+  catalog configuration
+* ``irods_encryption_key_size`` - SSL specific setting depending on your catalog
+  configuration
+* ``irods_encryption_num_hash_rounds`` - SSL specific setting depending on your
+  catalog configuration
+* ``irods_encryption_salt_size`` - SSL specific setting depending on your
+  catalog configuration
+* ``irods_ssl_ca_certificate_file`` - SSL specific setting depending on your
+  catalog configuration
 
 Now, you should be able to switch to the newly created connection by following:
 
