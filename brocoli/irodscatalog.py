@@ -499,8 +499,14 @@ class iRODSCatalog(catalog.Catalog):
 
             print_('md5sum', options[kw.VERIFY_CHKSUM_KW])
 
-            for y in _put(f, irods_path, **options):
-                yield y
+            try:
+                for y in _put(f, irods_path, **options):
+                    yield y
+            except irods.exception.USER_CHKSUM_MISMATCH as e:
+                # remove object from catalog and reraise
+                self.dom.unlink(irods_path, force=True)
+
+                raise exceptions.CatalogLogicError(e)
 
     def _upload_dir(self, dir_, path):
         files = []
