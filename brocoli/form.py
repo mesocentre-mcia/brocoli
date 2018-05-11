@@ -237,7 +237,8 @@ class FieldContainer(tk.Frame, object):
             v = frame_options['state']
             del frame_options['state']
 
-            for slave in self.slaves():
+            for slave in (self.pack_slaves() + self.grid_slaves() +
+                          self.place_slaves()):
                 slave.config(state=v)
 
         tk.Frame.config(self, **frame_options)
@@ -316,7 +317,7 @@ class FileSelectorField(TextField):
     """
     A FormField allowing to choose a local file
     """
-    def __init__(self, text, default_value='', #validate_command=None,
+    def __init__(self, text, default_value='',
                  tags=None):
         super(FileSelectorField, self).__init__(text, default_value, tags=tags)
 
@@ -332,7 +333,6 @@ class FileSelectorField(TextField):
 
         return frame
 
-
     def command(self):
         file = filedialog.askopenfilename()
 
@@ -340,6 +340,7 @@ class FileSelectorField(TextField):
             return
 
         self.var.set(file)
+
 
 class FormFrame(tk.Frame, object):
     """
@@ -405,7 +406,7 @@ class FormFrame(tk.Frame, object):
         state = field.disables_state()
 
         for tag in tags:
-            tag_targets = self.tag_dict[tag]
+            tag_targets = self.tag_dict.get(tag, self.TagTargets())
             tag_targets.state = state
             for w in tag_targets:
                 state = tk.NORMAL
@@ -420,7 +421,7 @@ class FormFrame(tk.Frame, object):
         state = field.enables_state()
 
         for tag in tags:
-            tag_targets = self.tag_dict[tag]
+            tag_targets = self.tag_dict.get(tag, self.TagTargets())
             tag_targets.state = state
             for w in tag_targets:
                 state = tk.NORMAL

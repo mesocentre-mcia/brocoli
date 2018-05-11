@@ -17,7 +17,8 @@ default_config_filename = os.path.join(os.path.expanduser('~'),
 # available catalogs
 catalog_dict = {
     'os': catalog.OSCatalog,
-    'irods3': irodscatalog.iRODSCatalog,
+    'irods3': irodscatalog.iRODSCatalog3,
+    'irods4': irodscatalog.iRODSCatalog4,
 }
 
 catalog_types = list(catalog_dict.keys())
@@ -45,6 +46,8 @@ class Config(collections.OrderedDict):
             cat = lambda master: catalog.OSCatalog()
         elif catalog_type == 'irods3':
             cat = irodscatalog.irods3_catalog_from_config(conn)
+        elif catalog_type == 'irods4':
+            cat = irodscatalog.irods4_catalog_from_config(conn)
 
         return cat, conn['root_path']
 

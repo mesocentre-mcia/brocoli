@@ -125,12 +125,17 @@ class BrocoliApplication(object):
     def set_connection(self, connection_name):
         conn, path = self.cfg.connection(connection_name)
 
+        old_catalog = self.tree_widget.catalog
+
         conn_name = '<Not connected>'
         if conn is not None:
             if not self.tree_widget.set_connection(conn, path):
                 return
 
             conn_name = connection_name or self.cfg.default_connection_name()
+
+        if old_catalog is not None:
+            old_catalog.close()
 
         app_name = 'Brocoli-{} - {}'.format(__version__, conn_name)
         self.root.title(app_name)

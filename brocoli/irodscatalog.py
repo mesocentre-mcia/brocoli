@@ -6,6 +6,7 @@ from . import catalog
 from . import form
 from . import exceptions
 from . listmanager import ColumnDef, List
+from . config_option import option_is_true
 
 import re
 import os
@@ -13,6 +14,7 @@ import io
 import hashlib
 import collections
 import datetime
+import ssl
 
 from six import print_
 from six.moves import tkinter as tk
@@ -101,8 +103,9 @@ def method_translate_exceptions(method):
         try:
             return method(self, *args, **kwargs)
         except irods.exception.CAT_INVALID_AUTHENTICATION as e:
+            self.close()
             raise exceptions.ConnectionError(e)
-        except irods.exception.NetworkException as e:
+        except (irods.exception.NetworkException, ssl.SSLError) as e:
             raise exceptions.NetworkError(e)
         except irods.exception.CAT_UNKNOWN_COLLECTION as e:
             raise exceptions.FileNotFoundError(e)
@@ -131,9 +134,9 @@ def function_translate_exceptions(func):
     return function_wrapper
 
 
-class iRODSCatalog(catalog.Catalog):
+class iRODSCatalogBase(catalog.Catalog):
     """
-    A Catalog for connectiong to iRODS
+    A base class Catalog for connecting to iRODS
     """
 
     BUFFER_SIZE = io.DEFAULT_BUFFER_SIZE * 1000
@@ -146,20 +149,17 @@ class iRODSCatalog(catalog.Catalog):
     def decode(cls, s):
         return password_obfuscation.decode(s, _getuid())
 
-    def __init__(self, host, port, user, zone, scrambled_password,
-                 default_resc):
-        try:
-            password = iRODSCatalog.decode(scrambled_password)
-            self.session = iRODSSession(host=host, port=port, user=user,
-                                        password=password, zone=zone)
-        except irods.exception.CAT_INVALID_AUTHENTICATION as e:
-            raise exceptions.ConnectionError(e)
+    def __init__(self, session, default_resc):
+        self.session = session
 
         self.default_resc = default_resc
 
         self.dom = self.session.data_objects
         self.cm = self.session.collections
         self.am = self.session.permissions
+
+    def close(self):
+        self.session.cleanup()
 
     def splitname(self, path):
         return path.rsplit('/', 1)
@@ -581,7 +581,6 @@ class iRODSCatalog(catalog.Catalog):
                                                 'access_name']])
             a['#0'] = a['user_name']
 
-
         @function_translate_exceptions
         def add(result):
             access_name = result['access_name']
@@ -605,7 +604,7 @@ class iRODSCatalog(catalog.Catalog):
 
             self.session.permissions.set(acl)
 
-        acls_def = iRODSCatalog.acls_def(self.session.zone)
+        acls_def = iRODSCatalogBase.acls_def(self.session.zone)
 
         return List(acls_def, acls, add_cb=add, remove_cb=remove)
 
@@ -638,7 +637,7 @@ class iRODSCatalog(catalog.Catalog):
 
             obj.metadata.remove(name, value, unit)
 
-        return List(iRODSCatalog.metadata_def(), metadata, add_cb=add,
+        return List(iRODSCatalogBase.metadata_def(), metadata, add_cb=add,
                     remove_cb=remove)
 
     @method_translate_exceptions
@@ -675,7 +674,7 @@ class iRODSCatalog(catalog.Catalog):
             # set row title for ListManager use
             r['#0'] = r['number']
 
-        replicas_list = List(iRODSCatalog.replicas_def(), replicas)
+        replicas_list = List(iRODSCatalogBase.replicas_def(), replicas)
 
         acls_list = self.__acls_from_object(do)
         metadata_list = self.__metadata_from_object(do)
@@ -755,6 +754,88 @@ class iRODSCatalog(catalog.Catalog):
         ])
 
 
+class iRODSCatalog3(iRODSCatalogBase):
+    """
+    A Catalog for connecting to iRODS v3
+    """
+
+    def __init__(self, host, port, user, zone, scrambled_password,
+                 default_resc):
+        try:
+            password = iRODSCatalogBase.decode(scrambled_password)
+            session = iRODSSession(host=host, port=port, user=user,
+                                   password=password, zone=zone)
+        except irods.exception.CAT_INVALID_AUTHENTICATION as e:
+            raise exceptions.ConnectionError(e)
+
+        super(iRODSCatalog3, self).__init__(session, default_resc)
+
+
+class iRODSCatalog4(iRODSCatalogBase):
+    """
+    A Catalog for connecting to iRODS v4
+    """
+
+    @classmethod
+    def from_env_file(cls, env_file):
+        session = iRODSSession(irods_env_file=env_file)
+
+        return cls(session, None)
+
+    @classmethod
+    def from_options(cls, host, port, user, zone, scrambled_password,
+                     default_resc, ssl_settings=None):
+        kwargs = {}
+        try:
+            password = iRODSCatalogBase.decode(scrambled_password)
+            kwargs.update(dict(host=host, port=port, user=user,
+                               password=password, zone=zone))
+        except irods.exception.CAT_INVALID_AUTHENTICATION as e:
+            raise exceptions.ConnectionError(e)
+
+        if ssl_settings is not None:
+            kwargs.update(ssl_settings)
+
+        session = iRODSSession(**kwargs)
+
+        return cls(session, default_resc)
+
+    @classmethod
+    def config_fields(cls):
+        base_dict = iRODSCatalogBase.config_fields()
+
+        tags = base_dict['host'].tags
+
+        ssl_tag = 'ssl_config'
+
+        ssl_tags = tags + [ssl_tag]
+
+        ssl_options = collections.OrderedDict([
+            ('use_irods_ssl', form.BooleanField('Use irods SSL transfer',
+                                                enables_tags=[ssl_tag],
+                                                tags=tags)),
+            ('irods_encryption_algorithm',
+             form.TextField('irods_encryption_algorithm:',
+                            default_value='AES-256-CBC', tags=ssl_tags)),
+            ('irods_encryption_key_size',
+             form.IntegerField('irods_encryption_key_size:', default_value='32',
+                               tags=ssl_tags)),
+            ('irods_encryption_num_hash_rounds',
+             form.IntegerField('irods_encryption_num_hash_rounds:',
+                               default_value='16', tags=ssl_tags)),
+            ('irods_encryption_salt_size',
+             form.IntegerField('irods_encryption_salt_size:', default_value='8',
+                               tags=ssl_tags)),
+            ('irods_ssl_ca_certificate_file',
+             form.FileSelectorField('irods_ssl_ca_certificate_file:',
+                                    tags=ssl_tags)),
+        ])
+
+        base_dict.update(ssl_options)
+
+        return base_dict
+
+
 def irods3_catalog_from_envfile(envfile):
     """
     Creates an iRODSCatalog from a iRODS v3 configuration file (like
@@ -772,22 +853,15 @@ def irods3_catalog_from_envfile(envfile):
     with open(pwdfile, 'r') as f:
         scrambled_password = f.read().strip()
 
-    return iRODSCatalog(host, port, user, zone, scrambled_password,
-                        default_resc)
+    return iRODSCatalog3(host, port, user, zone, scrambled_password,
+                         default_resc)
 
 
 def irods3_catalog_from_config(cfg):
     """
     Creates an iRODSCatalog from configuration
     """
-    use_env = False
-    if cfg['use_irods_env'].lower() in ['1', 'yes', 'on', 'true']:
-        use_env = True
-    elif cfg['use_irods_env'].lower() in ['0', 'no', 'off', 'false']:
-        use_env = False
-    else:
-        msg = 'invalid irods_use_env value: {}'.format(cfg['use_irods_env'])
-        raise ValueError(msg)
+    use_env = option_is_true(cfg['use_irods_env'])
 
     if use_env:
         envfile = os.path.join(os.path.expanduser('~'), '.irods', '.irodsEnv')
@@ -805,10 +879,10 @@ def irods3_catalog_from_config(cfg):
 
     store_password = cfg['store_password']
     scrambled_password = None
-    if store_password.lower() in ['1', 'yes', 'on', 'true']:
+    if option_is_true(store_password):
         scrambled_password = cfg['password']
-        return lambda master: iRODSCatalog(host, port, user, zone,
-                                           scrambled_password, default_resc)
+        return lambda master: iRODSCatalog3(host, port, user, zone,
+                                            scrambled_password, default_resc)
     else:
         def ask_password(master):
             cancelled = {'cancelled': False}
@@ -845,9 +919,98 @@ def irods3_catalog_from_config(cfg):
             if cancelled['cancelled']:
                 return None
 
-            scrambled_password = iRODSCatalog.encode(pf.to_string())
+            scrambled_password = iRODSCatalogBase.encode(pf.to_string())
 
-            return iRODSCatalog(host, port, user, zone, scrambled_password,
-                                default_resc)
+            return iRODSCatalog3(host, port, user, zone, scrambled_password,
+                                 default_resc)
+
+        return ask_password
+
+
+def irods4_catalog_from_config(cfg):
+    """
+    Creates an iRODSCatalog from configuration
+    """
+    use_env = option_is_true(cfg['use_irods_env'])
+
+    if use_env:
+        envfile = os.path.join(os.path.expanduser('~'), '.irods',
+                               'irods_environment.json')
+        return lambda master: iRODSCatalog4.from_env_file(envfile)
+
+    host = cfg['host']
+    port = cfg['port']
+    user = cfg['user_name']
+    zone = cfg['zone']
+
+    ssl = None
+    if option_is_true(cfg['use_irods_ssl']):
+        ssl = {
+            'irods_client_server_negotiation': 'request_server_negotiation',
+            'irods_client_server_policy': 'CS_NEG_REQUIRE',
+            'irods_encryption_algorithm': cfg['irods_encryption_algorithm'],
+            'irods_encryption_key_size': int(cfg['irods_encryption_key_size']),
+            'irods_encryption_num_hash_rounds':
+                int(cfg['irods_encryption_num_hash_rounds']),
+            'irods_encryption_salt_size':
+                int(cfg['irods_encryption_salt_size']),
+            'irods_ssl_ca_certificate_file':
+                cfg['irods_ssl_ca_certificate_file'],
+        }
+
+    default_resc = cfg.get('default_resc', None)
+    if default_resc == '':
+        # empty string is not valid for default_resc
+        default_resc = None
+
+    store_password = cfg['store_password']
+    scrambled_password = None
+    if option_is_true(store_password):
+        scrambled_password = cfg['password']
+        return lambda master: iRODSCatalog4.from_options(host, port, user,
+                                                         zone,
+                                                         scrambled_password,
+                                                         default_resc, ssl)
+    else:
+        def ask_password(master):
+            cancelled = {'cancelled': False}
+
+            def _do_ok(e=None):
+                tl.destroy()
+
+            def _do_cancel(e=None):
+                pf.from_string('')
+                cancelled['cancelled'] = True
+                tl.destroy()
+
+            tl = tk.Toplevel(master)
+            tl.title('iRODS password')
+            tl.transient(master)
+
+            ff = form.FormFrame(tl)
+            pf = form.PasswordField('password for {}@{}:'.format(user, zone),
+                                    return_cb=_do_ok)
+            ff.grid_fields([pf])
+            ff.pack()
+
+            butbox = tk.Frame(tl)
+            butbox.pack()
+            ok = tk.Button(butbox, text='Ok', command=_do_ok)
+            ok.grid()
+            ok.bind('<Return>', _do_ok)
+            cancel = tk.Button(butbox, text='Cancel', command=_do_cancel)
+            cancel.grid(row=0, column=1)
+            cancel.bind('<Return>', _do_cancel)
+
+            tl.wait_window()
+
+            if cancelled['cancelled']:
+                return None
+
+            scrambled_password = iRODSCatalogBase.encode(pf.to_string())
+
+            return iRODSCatalog4.from_options(host, port, user, zone,
+                                              scrambled_password, default_resc,
+                                              ssl)
 
         return ask_password
