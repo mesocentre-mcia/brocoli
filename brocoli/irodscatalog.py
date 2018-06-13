@@ -540,10 +540,31 @@ class iRODSCatalogBase(catalog.Catalog):
             if kw.OPR_TYPE_KW not in options:
                 options[kw.OPR_TYPE_KW] = 1  # PUT_OPR
 
-            with open(file, 'rb') as f, self.dom.open(obj, 'w', **options) as o:
-                for chunk in chunks(f, self.BUFFER_SIZE):
-                    o.write(chunk)
-                    yield len(chunk)
+
+            with open(file, 'rb') as f:
+                closed = False
+                o = self.dom.open(obj, 'w', **options)
+
+                try:
+                    for chunk in chunks(f, self.BUFFER_SIZE):
+                        o.write(chunk)
+                        yield len(chunk)
+                except GeneratorExit:
+                    # generator was interrupted
+
+                    closed = True
+                    try:
+                        o.close()
+                    except irods.exception.USER_CHKSUM_MISMATCH:
+                        # it's normal that cksum fails since we were interrupted
+                        # -> ignore
+                        pass
+                    return
+
+                finally:
+                    # close data object except already done
+                    if not closed:
+                        o.close()
 
             if kw.ALL_KW in options:
                 options[kw.UPDATE_REPL_KW] = ''
