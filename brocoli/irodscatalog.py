@@ -73,6 +73,7 @@ def local_trees_stats(dirs):
     """
     total_nfiles = 0
     total_size = 0
+    stats = {}
 
     for d in dirs:
         nfiles = 0
@@ -82,18 +83,20 @@ def local_trees_stats(dirs):
             nfiles += len(files)
             size += sum(os.path.getsize(os.path.join(root, name))
                         for name in files)
+        stats[d] = size
 
         total_nfiles += nfiles
         total_size += size
 
-    return total_nfiles, total_size
+    return total_nfiles, total_size, stats
 
 
 def local_files_stats(files):
     """
     Computes stats (number of files and cumulated size) on a file list
     """
-    return len(files), sum(os.path.getsize(f) for f in files)
+    stats = {f: os.path.getsize(f) for f in files}
+    return len(files), sum(v for v in stats.values()), stats
 
 
 def method_translate_exceptions(method):
@@ -375,11 +378,13 @@ class iRODSCatalogBase(catalog.Catalog):
                   int(r[DataObject.size])
 
         return (len(file_paths),
-                sum([v for k, v in stats.items() if k in file_paths]))
+                sum([v for k, v in stats.items() if k in file_paths]),
+                stats)
 
     def remote_trees_stats(self, dirs):
         nfiles = 0
         size = 0
+        stats = {}
 
         for d in dirs:
             # need to keep column 'collection_id' to avoid 'distinct' clause on
@@ -387,39 +392,49 @@ class iRODSCatalogBase(catalog.Catalog):
             q = self.session.query(DataObject.collection_id, DataObject.name,
                                    DataObject.size)
 
+            dsize = 0
             # first level query
             q1 = q.filter(Collection.name == d)
             for r in q1.get_results():
                 nfiles += 1
-                size += int(r[DataObject.size])
+                dsize += int(r[DataObject.size])
 
             # recursive query
             qr = q.filter(Like(Collection.name, self.join(d, '%')))
             for r in qr.get_results():
                 nfiles += 1
-                size += int(r[DataObject.size])
+                dsize += int(r[DataObject.size])
 
-        return nfiles, size
+            stats[d] = dsize
+            size += dsize
+
+        return nfiles, size, stats
 
     @method_translate_exceptions
-    def download_files(self, pathlist, destdir):
-        nfiles, size = self.remote_files_stats(pathlist)
+    def download_files(self, pathlist, destdir, osl):
+        nfiles, size, stats = self.remote_files_stats(pathlist)
+
+        def cancel(f):
+            print_('interrupted: delete', f)
+            os.unlink(f)
+
+        for path in pathlist:
+            osl[path].size = stats[path]
+            osl[path].cancel = cancel
 
         if nfiles > 1 or size > self.BUFFER_SIZE:
             # wake up progress bar for more than one file or one large file
             yield 0, size
 
         completed = 0
-        for y in self._download_files(pathlist, destdir):
+        for y in self._download_files(pathlist, destdir, osl):
             completed += y
             yield completed, size
 
-    def _download_files(self, pathlist, destdir):
-        def _download(obj, local_path, **options):
+    def _download_files(self, pathlist, destdir, osl=None, status_path=None):
+        def _download(obj, file, **options):
             # adapted from https://github.com/irods/python-irodsclient
             # data_object_manager.py#L29
-
-            file = os.path.join(local_path, self.basename(obj))
 
             # Check for force flag if file exists
             if os.path.exists(file) and kw.FORCE_FLAG_KW not in options:
@@ -451,10 +466,17 @@ class iRODSCatalogBase(catalog.Catalog):
         for p in pathlist:
             print_('get', p, destdir)
 
-            for y in _download(p, destdir, **options):
+            destfile = os.path.join(destdir, self.basename(p))
+            sp = status_path or p
+            osl[sp].in_progress(destfile)
+            for y in _download(p, destfile, **options):
+                osl[sp].progress += y
                 yield y
 
-    def _download_coll(self, coll, destdir):
+            if sp == p:
+                osl[p].done()
+
+    def _download_coll(self, coll, destdir, osl, status_path):
         destdir = os.path.join(destdir, coll.name)
         try:
             os.makedirs(destdir)
@@ -463,42 +485,56 @@ class iRODSCatalogBase(catalog.Catalog):
                 raise
 
         pathlist = [dobj.path for dobj in list(coll.data_objects)]
-        for y in self._download_files(pathlist, destdir):
+        for y in self._download_files(pathlist, destdir, osl, status_path):
             yield y
 
         for subcoll in coll.subcollections:
-            for y in self._download_coll(subcoll, destdir):
+            for y in self._download_coll(subcoll, destdir, osl, status_path):
                 yield y
 
     @method_translate_exceptions
-    def download_directories(self, pathlist, destdir):
-        nfiles, size = self.remote_trees_stats(pathlist)
+    def download_directories(self, pathlist, destdir, osl):
+        nfiles, size, stats = self.remote_trees_stats(pathlist)
+
+        def cancel(f):
+            print_('interrupted: delete', f)
+            os.unlink(f)
+
+        for p in pathlist:
+            osl[p].size = stats[p]
+            osl[p].cancel = cancel
 
         completed = 0
         for p in pathlist:
             coll = self.cm.get(p)
-            for y in self._download_coll(coll, destdir):
+            osl[p].in_progress(None)
+            for y in self._download_coll(coll, destdir, osl, p):
                 completed += y
                 yield completed, size
 
+            osl[p].done()
+
     @method_translate_exceptions
-    def upload_files(self, files, path):
-        nfiles, size = local_files_stats(files)
+    def upload_files(self, files, path, osl):
+        nfiles, size, stats = local_files_stats(files)
+
+        def cancel(f):
+            print_('interrupted: delete', f)
+            self.dom.unlink(f, force=True)
+
+        for f in files:
+            osl[f].size = stats[f]
+            osl[f].cancel = cancel
 
         completed = 0
-        for s in self._upload_files(files, path):
+        for s in self._upload_files(files, path, osl):
             completed += s
             yield completed, size
 
-    def _upload_files(self, files, path):
-        def _put(file, irods_path, **options):
+    def _upload_files(self, files, path, osl, status_path=None):
+        def _put(file, obj, **options):
             # adapted from https://github.com/irods/python-irodsclient
             # data_object_manager.py#L60
-
-            if irods_path.endswith('/'):
-                obj = irods_path + os.path.basename(file)
-            else:
-                obj = irods_path
 
             # Set operation type to trigger acPostProcForPut
             if kw.OPR_TYPE_KW not in options:
@@ -537,16 +573,24 @@ class iRODSCatalogBase(catalog.Catalog):
                 options[kw.VERIFY_CHKSUM_KW] = self.local_file_cksum(f)
                 print_('cksum', options[kw.VERIFY_CHKSUM_KW])
 
+            sp = status_path or f
+            osl[sp].in_progress(irods_path)
+
             try:
                 for y in _put(f, irods_path, **options):
+                    osl[sp].progress += y
                     yield y
             except irods.exception.USER_CHKSUM_MISMATCH as e:
                 # remove object from catalog and reraise
-                self.dom.unlink(irods_path, force=True)
+                #self.dom.unlink(irods_path, force=True)
+                os[sp].fail()
 
                 raise exceptions.CatalogLogicError(e)
 
-    def _upload_dir(self, dir_, path):
+            if sp == f:
+                osl[f].done()
+
+    def _upload_dir(self, dir_, path, osl, status_path=None):
         files = []
         subdirs = []
 
@@ -562,45 +606,64 @@ class iRODSCatalogBase(catalog.Catalog):
             else:
                 files.append(abspath)
 
-        for y in self._upload_files(files, path):
+        for y in self._upload_files(files, path, osl, status_path):
             yield y
 
         for abspath, name in subdirs:
             cpath = self.join(path, name)
 
-            for y in self._upload_dir(abspath, cpath):
+            for y in self._upload_dir(abspath, cpath, osl, status_path):
                 yield y
 
     @method_translate_exceptions
-    def upload_directories(self, dirs, path):
-        nfiles, size = local_trees_stats(dirs)
+    def upload_directories(self, dirs, path, osl):
+        nfiles, size, stats = local_trees_stats(dirs)
+
+        def cancel(f):
+            print_('interrupted: delete', f)
+            self.dom.unlink(f, force=True)
+
+
+        for d in dirs:
+            print_(d, stats)
+            osl[d].size = stats[d]
+            osl[d].cancel = cancel
 
         completed = 0
         for d in dirs:
             name = os.path.basename(d)
             cpath = self.join(path, name)
 
-            for s in self._upload_dir(d, cpath):
+            osl[d].in_progress(None)
+            for s in self._upload_dir(d, cpath, osl, d):
                 completed += s
                 yield completed, size
 
+            osl[d].done()
+
     @method_translate_exceptions
-    def delete_files(self, files):
+    def delete_files(self, files, osl):
         number = len(files)
 
         i = 0
         for f in files:
+            osl[f].size=1
+            osl[f].in_progress(None)
             self.dom.unlink(f, force=True)
+            osl[f].done()
             i += 1
             yield i, number
 
     @method_translate_exceptions
-    def delete_directories(self, directories):
+    def delete_directories(self, directories, osl):
         number = len(directories)
 
         i = 0
         for d in directories:
+            osl[d].size=1
+            osl[d].in_progress(None)
             self.cm.remove(d, recurse=True, force=True)
+            osl[d].done()
             i += 1
             yield i, number
 
