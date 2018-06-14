@@ -811,6 +811,11 @@ class iRODSCatalog4(iRODSCatalogBase):
         ssl_tags = tags + [ssl_tag]
 
         ssl_options = collections.OrderedDict([
+            ('irods_client_server_policy',
+             form.RadioChoiceField('irods_client_server_policy',
+                                   values=['CS_NEG_REQUIRE', 'CS_NEG_REFUSE',
+                                           'CS_NEG_DONT_CARE'],
+                                   default_value='CS_NEG_REQUIRE')),
             ('use_irods_ssl', form.BooleanField('Use irods SSL transfer',
                                                 enables_tags=[ssl_tag],
                                                 tags=tags)),
@@ -947,7 +952,7 @@ def irods4_catalog_from_config(cfg):
     if option_is_true(cfg['use_irods_ssl']):
         ssl = {
             'irods_client_server_negotiation': 'request_server_negotiation',
-            'irods_client_server_policy': 'CS_NEG_REQUIRE',
+            'irods_client_server_policy': cfg['irods_client_server_policy'],
             'irods_encryption_algorithm': cfg['irods_encryption_algorithm'],
             'irods_encryption_key_size': int(cfg['irods_encryption_key_size']),
             'irods_encryption_num_hash_rounds':
