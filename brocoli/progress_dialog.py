@@ -100,10 +100,10 @@ def progress_from_generator(master, message, generator):
     """
     with ProgressDialog(master, message) as progress:
         for p, n in generator:
+            progress.set(p, n)
+
             if progress.interrupted:
                 return
-
-            progress.set(p, n)
 
 
 def unbounded_progress_from_generator(master, message, generator):
