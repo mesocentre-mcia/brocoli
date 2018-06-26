@@ -616,7 +616,7 @@ class iRODSCatalogBase(catalog.Catalog):
         subdirs = []
 
         try:
-            coll = self.cm.create(path)
+            self.cm.create(path)
         except irods.exception.CATALOG_ALREADY_HAS_ITEM_BY_THAT_NAME:
             pass
 
