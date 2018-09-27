@@ -12,6 +12,7 @@ import re
 import os
 import io
 import hashlib
+import base64
 import collections
 import datetime
 import ssl
@@ -140,6 +141,28 @@ class iRODSCatalogBase(catalog.Catalog):
     """
 
     BUFFER_SIZE = io.DEFAULT_BUFFER_SIZE * 1000
+
+    def local_file_md5_cksum(self, filename):
+        scheme = hashlib.md5()
+        with open(filename, 'rb') as f:
+            for chunk in chunks(f, self.BUFFER_SIZE):
+                scheme.update(chunk)
+
+        return scheme.hexdigest()
+
+    def local_file_sha256_cksum(self, filename):
+        scheme = hashlib.sha256()
+        with open(filename, 'rb') as f:
+            for chunk in chunks(f, self.BUFFER_SIZE):
+                scheme.update(chunk)
+
+        return 'sha2:' + base64.b64encode(scheme.digest()).decode()
+
+    def hash(self, filename):
+        if self.session.pool.account.default_hash_scheme == 'SHA256':
+            return self.local_file_sha256_cksum(filename)
+
+        return self.local_file_md5_cksum(filename)
 
     @classmethod
     def encode(cls, s):
@@ -444,14 +467,6 @@ class iRODSCatalogBase(catalog.Catalog):
             yield completed, size
 
     def _upload_files(self, files, path):
-        def local_file_md5(filename):
-            m = hashlib.md5()
-            with open(filename, 'rb') as f:
-                for chunk in chunks(f, self.BUFFER_SIZE):
-                    m.update(chunk)
-
-            return m.hexdigest()
-
         def _put(file, irods_path, **options):
             # adapted from https://github.com/irods/python-irodsclient
             # data_object_manager.py#L60
@@ -495,9 +510,9 @@ class iRODSCatalogBase(catalog.Catalog):
                 # wake up progress bar before checksum for large files
                 yield 0
 
-            options[kw.VERIFY_CHKSUM_KW] = local_file_md5(f)
+            options[kw.VERIFY_CHKSUM_KW] = self.hash(f)
 
-            print_('md5sum', options[kw.VERIFY_CHKSUM_KW])
+            print_('cksum', options[kw.VERIFY_CHKSUM_KW])
 
             try:
                 for y in _put(f, irods_path, **options):
@@ -764,7 +779,8 @@ class iRODSCatalog3(iRODSCatalogBase):
         try:
             password = iRODSCatalogBase.decode(scrambled_password)
             session = iRODSSession(host=host, port=port, user=user,
-                                   password=password, zone=zone)
+                                   password=password, zone=zone,
+                                   default_hash_scheme='MD5')
         except irods.exception.CAT_INVALID_AUTHENTICATION as e:
             raise exceptions.ConnectionError(e)
 
@@ -784,12 +800,13 @@ class iRODSCatalog4(iRODSCatalogBase):
 
     @classmethod
     def from_options(cls, host, port, user, zone, scrambled_password,
-                     default_resc, ssl_settings=None):
+                     default_resc, default_hash_scheme, ssl_settings=None):
         kwargs = {}
         try:
             password = iRODSCatalogBase.decode(scrambled_password)
             kwargs.update(dict(host=host, port=port, user=user,
-                               password=password, zone=zone))
+                               password=password, zone=zone,
+                               default_hash_scheme=default_hash_scheme))
         except irods.exception.CAT_INVALID_AUTHENTICATION as e:
             raise exceptions.ConnectionError(e)
 
@@ -806,6 +823,14 @@ class iRODSCatalog4(iRODSCatalogBase):
 
         tags = base_dict['host'].tags
 
+        base_dict.update({
+            ('irods_default_hash_scheme',
+             form.RadioChoiceField('Default hash scheme',
+                                   values=['MD5', 'SHA256'],
+                                   default_value='SHA256',
+                                   tags=tags)),
+        })
+
         ssl_tag = 'ssl_config'
 
         ssl_tags = tags + [ssl_tag]
@@ -817,6 +842,7 @@ class iRODSCatalog4(iRODSCatalogBase):
                                            'CS_NEG_DONT_CARE'],
                                    default_value='CS_NEG_REQUIRE',
                                    tags=tags)),
+
             ('use_irods_ssl', form.BooleanField('Use irods SSL transfer',
                                                 enables_tags=[ssl_tag],
                                                 tags=tags)),
@@ -949,6 +975,8 @@ def irods4_catalog_from_config(cfg):
     user = cfg['user_name']
     zone = cfg['zone']
 
+    default_hash_scheme = cfg['irods_default_hash_scheme']
+
     ssl = None
     if option_is_true(cfg['use_irods_ssl']):
         ssl = {
@@ -976,7 +1004,9 @@ def irods4_catalog_from_config(cfg):
         return lambda master: iRODSCatalog4.from_options(host, port, user,
                                                          zone,
                                                          scrambled_password,
-                                                         default_resc, ssl)
+                                                         default_resc,
+                                                         default_hash_scheme,
+                                                         ssl)
     else:
         def ask_password(master):
             cancelled = {'cancelled': False}
@@ -1017,6 +1047,6 @@ def irods4_catalog_from_config(cfg):
 
             return iRODSCatalog4.from_options(host, port, user, zone,
                                               scrambled_password, default_resc,
-                                              ssl)
+                                              default_hash_scheme, ssl)
 
         return ask_password
