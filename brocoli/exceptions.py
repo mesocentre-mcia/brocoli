@@ -29,6 +29,8 @@ class FileNotFoundError(BrocoliError):
 class CatalogLogicError(BrocoliError):
     pass
 
+class ChecksumError(Exception):
+    pass
 
 def ioerror(no):
     return IOError(no, os.strerror(no))
@@ -52,6 +54,10 @@ def handle_catalog_exceptions(method):
         except CatalogLogicError as e:
             messagebox.showerror('Catalog Logic Error',
                                  ('Catalog logic error occurred: ' +
+                                  '{}').format(str(e)))
+        except ChecksumError as e:
+            messagebox.showerror('Checksum Error',
+                                 ('Checksum error occurred: ' +
                                   '{}').format(str(e)))
         except Exception as e:
             messagebox.showerror('Unknown Error',
