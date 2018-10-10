@@ -158,6 +158,12 @@ class iRODSCatalogBase(catalog.Catalog):
 
         return 'sha2:' + base64.b64encode(scheme.digest()).decode()
 
+    def local_file_cksum_ref(self, filename, ref_cksum):
+        if ref_cksum.startswith('sha2:'):
+            return self.local_file_sha256_cksum(filename)
+
+        return self.local_file_md5_cksum(filename)
+
     def local_file_cksum(self, filename):
         if self.session.pool.account.default_hash_scheme == 'SHA256':
             return self.local_file_sha256_cksum(filename)
@@ -423,6 +429,22 @@ class iRODSCatalogBase(catalog.Catalog):
                 for chunk in chunks(o, self.BUFFER_SIZE):
                     f.write(chunk)
                     yield len(chunk)
+
+            obj_cksum = self.dom.get(obj).checksum
+            if self.local_checksum:
+                obj_cksum = self.dom.get(obj).checksum
+                if obj_cksum is not None:
+                    local_cksum = self.local_file_cksum_ref(file, obj_cksum)
+                    if local_cksum != obj_cksum:
+                        # FIXME: delete local file?
+                        msg = 'Downloaded file has an incorrect checksum ' \
+                              '(local=\'{}\', ' \
+                              'catalog=\'{}\')'.format(local_cksum, obj_cksum)
+                        raise exceptions.ChecksumError(msg)
+                    else:
+                        print_('checksum ok', local_cksum)
+                else:
+                    print_('checksum is None')
 
         options = {kw.FORCE_FLAG_KW: ''}
 
