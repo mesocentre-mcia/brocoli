@@ -158,7 +158,7 @@ class iRODSCatalogBase(catalog.Catalog):
 
         return 'sha2:' + base64.b64encode(scheme.digest()).decode()
 
-    def hash(self, filename):
+    def local_file_cksum(self, filename):
         if self.session.pool.account.default_hash_scheme == 'SHA256':
             return self.local_file_sha256_cksum(filename)
 
@@ -172,10 +172,12 @@ class iRODSCatalogBase(catalog.Catalog):
     def decode(cls, s):
         return password_obfuscation.decode(s, _getuid())
 
-    def __init__(self, session, default_resc):
+    def __init__(self, session, default_resc, local_checksum):
         self.session = session
 
         self.default_resc = default_resc
+
+        self.local_checksum = local_checksum
 
         self.dom = self.session.data_objects
         self.cm = self.session.collections
@@ -493,7 +495,6 @@ class iRODSCatalogBase(catalog.Catalog):
             path = path + '/'
 
         options = {
-            kw.VERIFY_CHKSUM_KW: '',
             kw.ALL_KW: '',
             kw.UPDATE_REPL_KW: '',
         }
@@ -510,9 +511,9 @@ class iRODSCatalogBase(catalog.Catalog):
                 # wake up progress bar before checksum for large files
                 yield 0
 
-            options[kw.VERIFY_CHKSUM_KW] = self.hash(f)
-
-            print_('cksum', options[kw.VERIFY_CHKSUM_KW])
+            if self.local_checksum:
+                options[kw.VERIFY_CHKSUM_KW] = self.local_file_cksum(f)
+                print_('cksum', options[kw.VERIFY_CHKSUM_KW])
 
             try:
                 for y in _put(f, irods_path, **options):
@@ -752,6 +753,8 @@ class iRODSCatalogBase(catalog.Catalog):
         tags = ['inline_config']
 
         return collections.OrderedDict([
+            ('local_checksum', form.BooleanField('Perform local checksum:',
+                                                 default_value=True)),
             ('use_irods_env', form.BooleanField('Use irods environment file:',
                                                 disables_tags=tags)),
             ('host', form.HostnameField('iRODS host:', tags=tags)),
@@ -775,7 +778,7 @@ class iRODSCatalog3(iRODSCatalogBase):
     """
 
     def __init__(self, host, port, user, zone, scrambled_password,
-                 default_resc):
+                 default_resc, local_checksum):
         try:
             password = iRODSCatalogBase.decode(scrambled_password)
             session = iRODSSession(host=host, port=port, user=user,
@@ -784,7 +787,8 @@ class iRODSCatalog3(iRODSCatalogBase):
         except irods.exception.CAT_INVALID_AUTHENTICATION as e:
             raise exceptions.ConnectionError(e)
 
-        super(iRODSCatalog3, self).__init__(session, default_resc)
+        super(iRODSCatalog3, self).__init__(session, default_resc,
+                                            local_checksum)
 
 
 class iRODSCatalog4(iRODSCatalogBase):
@@ -793,14 +797,15 @@ class iRODSCatalog4(iRODSCatalogBase):
     """
 
     @classmethod
-    def from_env_file(cls, env_file):
+    def from_env_file(cls, env_file, local_checksum):
         session = iRODSSession(irods_env_file=env_file)
 
-        return cls(session, None)
+        return cls(session, None, local_checksum)
 
     @classmethod
     def from_options(cls, host, port, user, zone, scrambled_password,
-                     default_resc, default_hash_scheme, ssl_settings=None):
+                     default_resc, local_checksum, default_hash_scheme,
+                     ssl_settings=None):
         kwargs = {}
         try:
             password = iRODSCatalogBase.decode(scrambled_password)
@@ -815,7 +820,7 @@ class iRODSCatalog4(iRODSCatalogBase):
 
         session = iRODSSession(**kwargs)
 
-        return cls(session, default_resc)
+        return cls(session, default_resc, local_checksum)
 
     @classmethod
     def config_fields(cls):
@@ -868,7 +873,7 @@ class iRODSCatalog4(iRODSCatalogBase):
         return base_dict
 
 
-def irods3_catalog_from_envfile(envfile):
+def irods3_catalog_from_envfile(envfile, local_checksum):
     """
     Creates an iRODSCatalog from a iRODS v3 configuration file (like
     "~/.irods/.irodsEnv")
@@ -886,18 +891,20 @@ def irods3_catalog_from_envfile(envfile):
         scrambled_password = f.read().strip()
 
     return iRODSCatalog3(host, port, user, zone, scrambled_password,
-                         default_resc)
+                         default_resc, local_checksum)
 
 
 def irods3_catalog_from_config(cfg):
     """
     Creates an iRODSCatalog from configuration
     """
+    local_checksum = option_is_true(cfg.get('local_checksum', 'True'))
     use_env = option_is_true(cfg['use_irods_env'])
 
     if use_env:
         envfile = os.path.join(os.path.expanduser('~'), '.irods', '.irodsEnv')
-        return lambda master: irods3_catalog_from_envfile(envfile)
+        return lambda master: irods3_catalog_from_envfile(envfile,
+                                                          local_checksum)
 
     host = cfg['host']
     port = cfg['port']
@@ -914,7 +921,8 @@ def irods3_catalog_from_config(cfg):
     if option_is_true(store_password):
         scrambled_password = cfg['password']
         return lambda master: iRODSCatalog3(host, port, user, zone,
-                                            scrambled_password, default_resc)
+                                            scrambled_password, default_resc,
+                                            local_checksum)
     else:
         def ask_password(master):
             cancelled = {'cancelled': False}
@@ -954,7 +962,7 @@ def irods3_catalog_from_config(cfg):
             scrambled_password = iRODSCatalogBase.encode(pf.to_string())
 
             return iRODSCatalog3(host, port, user, zone, scrambled_password,
-                                 default_resc)
+                                 default_resc, local_checksum)
 
         return ask_password
 
@@ -963,12 +971,14 @@ def irods4_catalog_from_config(cfg):
     """
     Creates an iRODSCatalog from configuration
     """
+    local_checksum = option_is_true(cfg.get('local_checksum', 'True'))
     use_env = option_is_true(cfg['use_irods_env'])
 
     if use_env:
         envfile = os.path.join(os.path.expanduser('~'), '.irods',
                                'irods_environment.json')
-        return lambda master: iRODSCatalog4.from_env_file(envfile)
+        return lambda master: iRODSCatalog4.from_env_file(envfile,
+                                                          local_checksum)
 
     host = cfg['host']
     port = cfg['port']
@@ -1005,6 +1015,7 @@ def irods4_catalog_from_config(cfg):
                                                          zone,
                                                          scrambled_password,
                                                          default_resc,
+                                                         local_checksum,
                                                          default_hash_scheme,
                                                          ssl)
     else:
@@ -1047,6 +1058,7 @@ def irods4_catalog_from_config(cfg):
 
             return iRODSCatalog4.from_options(host, port, user, zone,
                                               scrambled_password, default_resc,
+                                              local_checksum,
                                               default_hash_scheme, ssl)
 
         return ask_password
