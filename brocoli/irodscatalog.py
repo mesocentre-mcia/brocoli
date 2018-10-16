@@ -29,7 +29,10 @@ from irods.models import DataObject, Collection
 from irods.manager import data_object_manager
 from irods.data_object import chunks
 from irods.column import Like
+from irods.api_number import api_number
 import irods.keywords as kw
+import irods.constants as const
+import irods.message as message
 import irods.exception
 
 _getuid = None
@@ -675,6 +678,41 @@ class iRODSCatalogBase(catalog.Catalog):
             i += 1
             yield i, number
 
+    def _coll_remove_yield(self, path, recurse=True, force=False, **options):
+        """
+        interruptible version of CollectionManager.coll_remove() method
+        """
+        if recurse:
+            options[kw.RECURSIVE_OPR__KW] = ''
+        if force:
+            options[kw.FORCE_FLAG_KW] = ''
+
+        try:
+            oprType = options[kw.OPR_TYPE_KW]
+        except KeyError:
+            oprType = 0
+
+        message_body = message.CollectionRequest(
+            collName=path,
+            flags = 0,
+            oprType = oprType,
+            KeyValPair_PI=message.StringStringMap(options)
+        )
+        msg = message.iRODSMessage('RODS_API_REQ', msg=message_body,
+                                   int_info=api_number['RM_COLL_AN'])
+        with self.session.pool.get_connection() as conn:
+            conn.send(msg)
+            response = conn.recv()
+
+            try:
+                while response.int_info == const.SYS_SVR_TO_CLI_COLL_STAT:
+                    conn.reply(const.SYS_CLI_TO_SVR_COLL_STAT_REPLY)
+                    yield
+                    response = conn.recv()
+            except GeneratorExit:
+                # destroy connection which is in a bad state (could fix?)
+                conn.release(destroy=True)
+
     @method_translate_exceptions
     def delete_directories(self, directories, osl):
         number = len(directories)
@@ -683,7 +721,8 @@ class iRODSCatalogBase(catalog.Catalog):
         for d in directories:
             osl[d].size=1
             osl[d].in_progress(None)
-            self.cm.remove(d, recurse=True, force=True)
+            for y in self._coll_remove_yield(d, recurse=True, force=True):
+                yield i, number
             osl[d].done()
             i += 1
             yield i, number
