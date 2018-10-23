@@ -345,13 +345,15 @@ class TreeWidget(tk.Frame):
         files, directories = self._split_files_and_directories(selection)
 
         if files:
-            progress(self.master, 'download {} files'.format(len(files)),
-                     self.catalog.download_files(files, destdir))
+            with catalog.OperationStatusList(files) as osl:
+                progress(self.master, 'download {} files'.format(len(files)),
+                         self.catalog.download_files(files, destdir, osl))
 
         if directories:
-            progress(self.master,
-                     'download {} directories'.format(len(directories)),
-                     self.catalog.download_directories(directories, destdir))
+            with catalog.OperationStatusList(directories) as osl:
+                progress(self.master,
+                         'download {} directories'.format(len(directories)),
+                         self.catalog.download_directories(directories, destdir, osl))
 
     @handle_catalog_exceptions
     def upload(self):
@@ -362,8 +364,9 @@ class TreeWidget(tk.Frame):
 
         print_('uploading', files, 'to', path)
         if files:
-            progress(self.master, 'upload {} files'.format(len(files)),
-                     self.catalog.upload_files(files, path))
+            with catalog.OperationStatusList(files) as osl:
+                progress(self.master, 'upload {} files'.format(len(files)),
+                         self.catalog.upload_files(files, path, osl))
 
         pathid = path
         if path == self.path:
@@ -379,8 +382,9 @@ class TreeWidget(tk.Frame):
 
         print_('recursively uploading', directory, 'to', path)
 
-        progress(self.master, 'recursively upload {} directory'.format(1),
-                 self.catalog.upload_directories((directory, ), path))
+        with catalog.OperationStatusList([directory]) as osl:
+            progress(self.master, 'recursively upload {} directory'.format(1),
+                     self.catalog.upload_directories((directory, ), path, osl))
 
         pathid = path
         if path == self.path:
@@ -408,20 +412,31 @@ class TreeWidget(tk.Frame):
 
         parents = {self.tree.parent(f) for f in selection}
 
-        with ProgressDialog(self.master, '') as progress_bar:
+        with ProgressDialog(self.master, '') as progress_bar, \
+                catalog.OperationStatusList(files + directories) as osl:
+
             if files:
                 n = len(files)
                 progress_bar.set_message('delete {} files'.format(n))
                 progress_bar.set(0, n)
-                for p, n in self.catalog.delete_files(files):
+
+                for p, n in self.catalog.delete_files(files, osl):
                     progress_bar.set(p, n)
+
+                    if progress_bar.interrupted:
+                        directories = []
+                        break
 
             if directories:
                 n = len(directories)
                 progress_bar.set_message('delete {} directories'.format(n))
                 progress_bar.set(0, n)
-                for p, n in self.catalog.delete_directories(directories):
+
+                for p, n in self.catalog.delete_directories(directories, osl):
                     progress_bar.set(p, n)
+
+                    if progress_bar.interrupted:
+                        break
 
         if '' in parents:
             self.process_directory('', self.path)

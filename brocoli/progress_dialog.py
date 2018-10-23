@@ -4,7 +4,7 @@ Progression dialog classes
 
 from six.moves import tkinter as tk
 from six.moves import tkinter_ttk as ttk
-
+from six import print_
 
 class UnboundedProgressDialog:
     """
@@ -38,7 +38,7 @@ class ProgressDialog:
     """
     Displays a dialog with a completion percentage
     """
-    def __init__(self, parent, opname, **kwargs):
+    def __init__(self, parent, opname, interrupt=True, **kwargs):
         self.maximum = 100
         self.toplevel = tk.Toplevel(parent, **kwargs)
         self.toplevel.title(opname)
@@ -59,6 +59,14 @@ class ProgressDialog:
                                         maximum=self.maximum)
 
         self.progress.pack(expand=True, fill=tk.BOTH, side=tk.TOP)
+        self.interrupted = False
+        if interrupt:
+            interrupt_btn = tk.Button(self.toplevel, text='Interrupt',
+                                      command=self.interrupt)
+            interrupt_btn.pack()
+
+    def interrupt(self):
+        self.interrupted = True
 
     def set_message(self, message=None, percent=0):
         if message is not None:
@@ -68,6 +76,7 @@ class ProgressDialog:
     def set(self, value, maximum=100):
         value = int((100 * value) / maximum)
         if value == self.count.get():
+            self.toplevel.update()
             return
 
         self.count.set(value)
@@ -92,6 +101,9 @@ def progress_from_generator(master, message, generator):
     with ProgressDialog(master, message) as progress:
         for p, n in generator:
             progress.set(p, n)
+
+            if progress.interrupted:
+                return
 
 
 def unbounded_progress_from_generator(master, message, generator):

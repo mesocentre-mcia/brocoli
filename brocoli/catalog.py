@@ -1,6 +1,7 @@
 import os
 import shutil
 from datetime import datetime
+from collections import OrderedDict
 
 from six import print_
 
@@ -67,38 +68,38 @@ class Catalog(object):
         raise NotImplementedError
 
 
-    def download_files(self, pathlist, destdir):
+    def download_files(self, pathlist, destdir, osl):
         """
         Downloads files from the catalog pathlist to local destdir.
         """
         raise NotImplementedError
 
-    def download_directories(self, pathlist, destdir):
+    def download_directories(self, pathlist, destdir, osl):
         """
         Downloads directories contents to local destdir.
         """
         raise NotImplementedError
 
-    def upload_files(self, files, path):
+    def upload_files(self, files, path, osl):
         """
         Uploads local files to catalog destination path (a directory).
         """
         raise NotImplementedError
 
-    def upload_directories(self, dirs, path):
+    def upload_directories(self, dirs, path, osl):
         """
         Uploads local directories content to catalog destination path (a
         directory).
         """
         raise NotImplementedError
 
-    def delete_files(self, files):
+    def delete_files(self, files, osl):
         """
         Deletes catalog files.
         """
         raise NotImplementedError
 
-    def delete_directories(self, directories):
+    def delete_directories(self, directories, osl):
         """
         Recusively deletes catalog directories.
         """
@@ -132,6 +133,69 @@ class Catalog(object):
         configuration.
         """
         raise NotImplementedError
+
+
+class OperationStatus(object):
+    NEW = 0
+    IN_PROGRESS = 1
+    DONE = 2
+    FAILED = 3
+    INTERRUPTED = 4
+
+    def __init__(self, size=0, cancel=None):
+        self.status = self.NEW
+        self.progress = 0
+        self.size = size
+        self.cancel = cancel or (lambda e: None)
+
+        self.current_element = None
+
+    def in_progress(self, current_element):
+        self.status = self.IN_PROGRESS
+        self.current_element = current_element
+
+    def done(self):
+        self.status = self.DONE
+        self.progress = self.size
+        self.current_element = None
+
+    def interrupt(self):
+        if self.status not in (self.NEW, self.IN_PROGRESS):
+            return
+
+        if self.current_element is not None:
+            self.cancel(self.current_element)
+            self.current_element = None
+        self.status = self.INTERRUPTED
+
+    def fail(self):
+        self.interrupt()
+        self.status = self.FAILED
+
+
+class OperationStatusList(OrderedDict):
+    def __init__(self, keylist=[], cancel=None):
+        items = [(k, OperationStatus(cancel=cancel)) for k in keylist]
+        super(OperationStatusList, self).__init__(items)
+
+    def finalize(self):
+        for os in self.values():
+            os.interrupt()
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.finalize()
+
+    def update_list(self, keys, **kwargs):
+        for attr, arg in kwargs.items():
+            if isinstance(arg, dict):
+                for k in keys:
+                    setattr(self[k], attr, arg[k])
+            else:
+                for k in keys:
+                    setattr(self[k], attr, arg)
 
 class OSCatalog(Catalog):
     """
@@ -186,61 +250,101 @@ class OSCatalog(Catalog):
     def normpath(self, path):
         return os.path.normpath(path)
 
-    def download_files(self, pathlist, destdir):
+    def download_files(self, pathlist, destdir, osl):
         number = len(pathlist)
+        for path in pathlist:
+            osl[path].size = 1
+            osl[path].cancel = os.unlink
+
         i = 0
         for path in pathlist:
+            osl[path].in_progress(os.path.join(destdir, self.basename(path)))
             shutil.copy2(path, destdir)
+            osl[path].done()
             i += 1
             yield i, number
 
-    def download_directories(self, pathlist, destdir):
+    def download_directories(self, pathlist, destdir, osl):
         number = len(pathlist)
+        for p in pathlist:
+            osl[p].size = 1
+
         i = 0
         for path in pathlist:
+            osl[path].in_progress(None)
+
             # shutil.copytree needs a fresh new destination directory
             ddir = os.path.join(destdir, os.path.basename(path))
             if os.path.exists(ddir):
                 shutil.rmtree(ddir)
             shutil.copytree(path, ddir)
+
+            osl[path].done()
+
             i += 1
             yield i, number
 
-    def upload_files(self, files, path):
+    def upload_files(self, files, path, osl):
         number = len(files)
+        for f in files:
+            osl[f].size = 1
+
         i = 0
         for f in files:
+            osl[f].in_progress(None)
             shutil.copy2(f, path)
+            osl[f].done()
             i += 1
             yield i, number
 
-    def upload_directories(self, dirs, path):
+    def upload_directories(self, dirs, path, osl):
         number = len(dirs)
+        for d in dirs:
+            osl[d].size = 1
+
         i = 0
         for d in dirs:
+            osl[d].in_progress(None)
+
             # shutil.copytree needs a fresh new destination directory
             ddir = os.path.join(path, os.path.basename(d))
             if os.path.exists(ddir):
                 shutil.rmtree(ddir)
 
             shutil.copytree(d, ddir)
+
+            osl[d].done()
+
             i += 1
             yield i, number
 
-    def delete_files(self, files):
+    def delete_files(self, files, osl):
         number = len(files)
+        for f in files:
+            osl[f].size = 1
+
         i = 0
         for f in files:
+            osl[f].in_progress(None)
             os.unlink(f)
+            osl[f].done()
             i += 1
             yield i, number
 
 
-    def delete_directories(self, directories):
+    def delete_directories(self, directories, osl):
         number = len(directories)
+        for d in directories:
+            osl[d].size = 1
+
         i = 0
         for d in directories:
+            osl[d].in_progress(None)
+
             shutil.rmtree(d)
+
+            osl[d].done()
+
             i += 1
             yield i, number
 
