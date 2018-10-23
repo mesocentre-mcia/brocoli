@@ -148,33 +148,33 @@ class iRODSCatalogBase(catalog.Catalog):
 
     BUFFER_SIZE = io.DEFAULT_BUFFER_SIZE * 1000
 
-    def local_file_md5_cksum(self, filename):
-        scheme = hashlib.md5()
+    def local_file_cksum(self, filename, algorithm=None):
+        def get_digest(h):
+            if h.name == 'sha256':
+                return 'sha2:' + base64.b64encode(h.digest()).decode()
+
+            return h.hexdigest()
+
+        if algorithm is None:
+            algorithm = 'md5'
+            if self.session.pool.account.default_hash_scheme == 'SHA256':
+                algorithm = 'sha256'
+
+        scheme = hashlib.new(algorithm)
         with open(filename, 'rb') as f:
             for chunk in chunks(f, self.BUFFER_SIZE):
                 scheme.update(chunk)
+                yield len(chunk), ''
 
-        return scheme.hexdigest()
-
-    def local_file_sha256_cksum(self, filename):
-        scheme = hashlib.sha256()
-        with open(filename, 'rb') as f:
-            for chunk in chunks(f, self.BUFFER_SIZE):
-                scheme.update(chunk)
-
-        return 'sha2:' + base64.b64encode(scheme.digest()).decode()
+        yield 0, get_digest(scheme)
 
     def local_file_cksum_ref(self, filename, ref_cksum):
+        algorithm = None
         if ref_cksum.startswith('sha2:'):
-            return self.local_file_sha256_cksum(filename)
+            algorithm = 'sha256'
 
-        return self.local_file_md5_cksum(filename)
-
-    def local_file_cksum(self, filename):
-        if self.session.pool.account.default_hash_scheme == 'SHA256':
-            return self.local_file_sha256_cksum(filename)
-
-        return self.local_file_md5_cksum(filename)
+        for y in self.local_file_cksum(filename, algorithm):
+            yield y
 
     @classmethod
     def encode(cls, s):
@@ -197,6 +197,9 @@ class iRODSCatalogBase(catalog.Catalog):
 
     def close(self):
         self.session.cleanup()
+
+    def cksum_factor(self):
+        return 2 if self.local_checksum else 1
 
     def splitname(self, path):
         return path.rsplit('/', 1)
@@ -421,8 +424,11 @@ class iRODSCatalogBase(catalog.Catalog):
             print_('interrupted: delete', f)
             os.unlink(f)
 
+        cksum_factor = self.cksum_factor()
+        size *= cksum_factor
+
         for path in pathlist:
-            osl[path].size = stats[path]
+            osl[path].size = cksum_factor * stats[path]
             osl[path].cancel = cancel
 
         if nfiles > 1 or size > self.BUFFER_SIZE:
@@ -434,7 +440,7 @@ class iRODSCatalogBase(catalog.Catalog):
             completed += y
             yield completed, size
 
-    def _download_files(self, pathlist, destdir, osl=None, status_path=None):
+    def _download_files(self, pathlist, destdir, osl, status_path=None):
         def _download(obj, file, **options):
             # adapted from https://github.com/irods/python-irodsclient
             # data_object_manager.py#L29
@@ -452,7 +458,12 @@ class iRODSCatalogBase(catalog.Catalog):
             if self.local_checksum:
                 obj_cksum = self.dom.get(obj).checksum
                 if obj_cksum is not None:
-                    local_cksum = self.local_file_cksum_ref(file, obj_cksum)
+                    local_cksum = None
+                    for l, local_cksum in self.local_file_cksum_ref(file,
+                                                                    obj_cksum):
+
+                        yield l
+
                     if local_cksum != obj_cksum:
                         # FIXME: delete local file?
                         msg = 'Downloaded file has an incorrect checksum ' \
@@ -503,8 +514,11 @@ class iRODSCatalogBase(catalog.Catalog):
             print_('interrupted: delete', f)
             os.unlink(f)
 
+        cksum_factor = self.cksum_factor()
+        size *= cksum_factor
+
         for p in pathlist:
-            osl[p].size = stats[p]
+            osl[p].size = cksum_factor * stats[p]
             osl[p].cancel = cancel
 
         completed = 0
@@ -525,8 +539,11 @@ class iRODSCatalogBase(catalog.Catalog):
             print_('interrupted: delete', f)
             self.dom.unlink(f, force=True)
 
+        cksum_factor = self.cksum_factor()
+        size *= cksum_factor
+
         for f in files:
-            osl[f].size = stats[f]
+            osl[f].size = cksum_factor * stats[f]
             osl[f].cancel = cancel
 
         completed = 0
@@ -542,7 +559,6 @@ class iRODSCatalogBase(catalog.Catalog):
             # Set operation type to trigger acPostProcForPut
             if kw.OPR_TYPE_KW not in options:
                 options[kw.OPR_TYPE_KW] = 1  # PUT_OPR
-
 
             with open(file, 'rb') as f:
                 closed = False
@@ -593,20 +609,26 @@ class iRODSCatalogBase(catalog.Catalog):
                 # wake up progress bar before checksum for large files
                 yield 0
 
-            if self.local_checksum:
-                options[kw.VERIFY_CHKSUM_KW] = self.local_file_cksum(f)
-                print_('cksum', options[kw.VERIFY_CHKSUM_KW])
-
             sp = status_path or f
             osl[sp].in_progress(irods_path)
+
+            if self.local_checksum:
+                cksum = None
+                for l, cksum in self.local_file_cksum(f):
+                    osl[sp].progress += l
+                    yield l
+                options[kw.VERIFY_CHKSUM_KW] = cksum
+                print_('cksum', options[kw.VERIFY_CHKSUM_KW])
 
             try:
                 for y in _put(f, irods_path, **options):
                     osl[sp].progress += y
                     yield y
             except irods.exception.USER_CHKSUM_MISMATCH as e:
-                # remove object from catalog and reraise
+                # remove object from catalog?
                 #self.dom.unlink(irods_path, force=True)
+
+                # mark failed and reraise
                 os[sp].fail()
 
                 raise exceptions.CatalogLogicError(e)
@@ -647,10 +669,11 @@ class iRODSCatalogBase(catalog.Catalog):
             print_('interrupted: delete', f)
             self.dom.unlink(f, force=True)
 
+        cksum_factor = self.cksum_factor()
+        size *= cksum_factor
 
         for d in dirs:
-            print_(d, stats)
-            osl[d].size = stats[d]
+            osl[d].size = cksum_factor * stats[d]
             osl[d].cancel = cancel
 
         completed = 0
