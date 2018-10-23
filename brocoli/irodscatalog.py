@@ -426,10 +426,8 @@ class iRODSCatalogBase(catalog.Catalog):
 
         cksum_factor = self.cksum_factor()
         size *= cksum_factor
-
-        for path in pathlist:
-            osl[path].size = cksum_factor * stats[path]
-            osl[path].cancel = cancel
+        stats = {k : (s * cksum_factor) for k, s in stats.items()}
+        osl.update_list(pathlist, size=stats, cancel=cancel)
 
         if nfiles > 1 or size > self.BUFFER_SIZE:
             # wake up progress bar for more than one file or one large file
@@ -516,10 +514,8 @@ class iRODSCatalogBase(catalog.Catalog):
 
         cksum_factor = self.cksum_factor()
         size *= cksum_factor
-
-        for p in pathlist:
-            osl[p].size = cksum_factor * stats[p]
-            osl[p].cancel = cancel
+        stats = {k : (s * cksum_factor) for k, s in stats.items()}
+        osl.update_list(pathlist, size=stats, cancel=cancel)
 
         completed = 0
         for p in pathlist:
@@ -541,10 +537,8 @@ class iRODSCatalogBase(catalog.Catalog):
 
         cksum_factor = self.cksum_factor()
         size *= cksum_factor
-
-        for f in files:
-            osl[f].size = cksum_factor * stats[f]
-            osl[f].cancel = cancel
+        stats = {k : (s * cksum_factor) for k, s in stats.items()}
+        osl.update_list(files, size=stats, cancel=cancel)
 
         completed = 0
         for s in self._upload_files(files, path, osl):
@@ -671,10 +665,8 @@ class iRODSCatalogBase(catalog.Catalog):
 
         cksum_factor = self.cksum_factor()
         size *= cksum_factor
-
-        for d in dirs:
-            osl[d].size = cksum_factor * stats[d]
-            osl[d].cancel = cancel
+        stats = {k : (s * cksum_factor) for k, s in stats.items()}
+        osl.update_list(dirs, size=stats, cancel=cancel)
 
         completed = 0
         for d in dirs:

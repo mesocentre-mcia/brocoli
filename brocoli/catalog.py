@@ -188,6 +188,15 @@ class OperationStatusList(OrderedDict):
     def __exit__(self, *args):
         self.finalize()
 
+    def update_list(self, keys, **kwargs):
+        for attr, arg in kwargs.items():
+            if isinstance(arg, dict):
+                for k in keys:
+                    setattr(self[k], attr, arg[k])
+            else:
+                for k in keys:
+                    setattr(self[k], attr, arg)
+
 class OSCatalog(Catalog):
     """
     Presents contents from local filesystem. Useful for debugging.
