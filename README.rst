@@ -73,7 +73,7 @@ configuration fields are:
 * ``Make default connection`` - check if you want Brocoli to open this
   connection at startup
 * ``Perform local checksum`` - configures brocoli to verify checksum of
-  downloaded/uploaded files against catalog registered checksum if preset
+  downloaded/uploaded files against catalog registered checksum (if available)
 
 ``irosd3`` specific configuration fields:
 
