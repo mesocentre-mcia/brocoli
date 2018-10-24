@@ -72,6 +72,8 @@ configuration fields are:
 * ``Root path`` - enter the catalog path you want to base your display from
 * ``Make default connection`` - check if you want Brocoli to open this
   connection at startup
+* ``Perform local checksum`` - configures brocoli to verify checksum of
+  downloaded/uploaded files against catalog registered checksum if preset
 
 ``irosd3`` specific configuration fields:
 
@@ -91,6 +93,9 @@ configuration fields are:
 
 ``irods4`` connections have a few extra configuration fields:
 
+* ``Default hash scheme`` - choose checksum hash method among available
+  algorithms
+* ``irods_client_server_policy`` - iRODS client/server negociation behaviour
 * ``Use irods SSL transfer`` - check if you need SSL communication with your
   catalog
 * ``irods_encryption_algorithm`` - SSL specific setting depending on your
