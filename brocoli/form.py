@@ -276,10 +276,14 @@ class RadioChoiceField(FormField):
 
     def get_widget(self, master):
         frame = FieldContainer(master)
+        frame.configure(relief=tk.GROOVE, borderwidth=2)
+
+        inner_frame = FieldContainer(frame)
+        inner_frame.pack()
 
         for v in self.values:
-            rb = tk.Radiobutton(frame, text=v, value=v, variable=self.var)
-            rb.pack(side=self.side)
+            rb = tk.Radiobutton(inner_frame, text=v, value=v, variable=self.var)
+            rb.pack(side=self.side, anchor=tk.NW)
 
         return frame
 
