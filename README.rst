@@ -75,7 +75,7 @@ configuration fields are:
 * ``Perform local checksum`` - configures brocoli to verify checksum of
   downloaded/uploaded files against catalog registered checksum (if available)
 
-``irosd3`` specific configuration fields:
+``irods3`` specific configuration fields:
 
 * ``Use irods environment file`` - check if you want to use iRODS iCommands
   configuration file (usually ``~/.irods/.irodsEnv`` fr v3 instances and
