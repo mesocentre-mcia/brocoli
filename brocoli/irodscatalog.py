@@ -8,6 +8,8 @@ from . import exceptions
 from . listmanager import ColumnDef, List
 from . config_option import option_is_true
 
+from . irodsdom import ModifiedDataObjectManager
+
 import re
 import os
 import io
@@ -191,7 +193,7 @@ class iRODSCatalogBase(catalog.Catalog):
 
         self.local_checksum = local_checksum
 
-        self.dom = self.session.data_objects
+        self.dom = ModifiedDataObjectManager(self.session)
         self.cm = self.session.collections
         self.am = self.session.permissions
 
