@@ -498,7 +498,12 @@ class iRODSCatalogBase(catalog.Catalog):
             if not os.path.isdir(destdir):
                 raise
 
-        pathlist = [dobj.path for dobj in list(coll.data_objects)]
+        query = self.session.query(DataObject.name)\
+            .filter(Collection.name == coll.path)
+
+        results = query.get_results()
+
+        pathlist = [self.join(coll.path, r[DataObject.name]) for r in results]
         for y in self._download_files(pathlist, destdir, osl, status_path):
             yield y
 
