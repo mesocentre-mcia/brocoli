@@ -972,13 +972,14 @@ class iRODSCatalog4(iRODSCatalogBase):
     @classmethod
     def from_options(cls, host, port, user, zone, scrambled_password,
                      default_resc, local_checksum, default_hash_scheme,
-                     ssl_settings=None):
+                     authentication_scheme, ssl_settings=None):
         kwargs = {}
         try:
             password = iRODSCatalogBase.decode(scrambled_password)
             kwargs.update(dict(host=host, port=port, user=user,
                                password=password, zone=zone,
-                               default_hash_scheme=default_hash_scheme))
+                               default_hash_scheme=default_hash_scheme,
+                               authentication_scheme=authentication_scheme))
         except irods.exception.CAT_INVALID_AUTHENTICATION as e:
             raise exceptions.ConnectionError(e)
 
@@ -996,6 +997,11 @@ class iRODSCatalog4(iRODSCatalogBase):
         tags = base_dict['host'].tags
 
         base_dict.update({
+            ('irods_authentication_scheme',
+             form.RadioChoiceField('Authentication scheme',
+                                   values=['native', 'pam'],
+                                   default_value='native',
+                                   tags=tags)),
             ('irods_default_hash_scheme',
              form.RadioChoiceField('Default hash scheme',
                                    values=['MD5', 'SHA256'],
@@ -1153,6 +1159,7 @@ def irods4_catalog_from_config(cfg):
     zone = cfg['zone']
 
     default_hash_scheme = cfg['irods_default_hash_scheme']
+    authentication_scheme = cfg.get('irods_authentication_scheme', 'native')
 
     ssl = None
     if option_is_true(cfg['use_irods_ssl']):
@@ -1184,6 +1191,7 @@ def irods4_catalog_from_config(cfg):
                                                          default_resc,
                                                          local_checksum,
                                                          default_hash_scheme,
+                                                         authentication_scheme,
                                                          ssl)
     else:
         def ask_password(master):
@@ -1226,6 +1234,7 @@ def irods4_catalog_from_config(cfg):
             return iRODSCatalog4.from_options(host, port, user, zone,
                                               scrambled_password, default_resc,
                                               local_checksum,
-                                              default_hash_scheme, ssl)
+                                              default_hash_scheme,
+                                              authentication_scheme, ssl)
 
         return ask_password
