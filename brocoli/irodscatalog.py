@@ -158,9 +158,8 @@ class iRODSCatalogBase(catalog.Catalog):
             return h.hexdigest()
 
         if algorithm is None:
-            algorithm = 'md5'
-            if self.session.pool.account.default_hash_scheme == 'SHA256':
-                algorithm = 'sha256'
+            algorithm = getattr(self.session.pool.account,
+                                'default_hash_scheme', 'SHA256').lower()
 
         scheme = hashlib.new(algorithm)
         with open(filename, 'rb') as f:
@@ -586,9 +585,9 @@ class iRODSCatalogBase(catalog.Catalog):
                     if not closed:
                         o.close()
 
-            if kw.ALL_KW in options:
-                options[kw.UPDATE_REPL_KW] = ''
-                self.dom.replicate(obj, **options)
+#            if kw.ALL_KW in options:
+#                options[kw.UPDATE_REPL_KW] = ''
+#                self.dom.replicate(obj, **options)
 
         if not path.endswith('/'):
             path = path + '/'
