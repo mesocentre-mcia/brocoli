@@ -94,8 +94,15 @@ class BrocoliApplication(object):
         self.root.rowconfigure(0, weight=1)
         self.root.columnconfigure(0, weight=1)
 
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        self.cleanup()
+
     def run(self):
-        self.root.mainloop()
+        with self:
+            self.root.mainloop()
 
     def set_display_columns(self):
         dcols = self.cfg[config.SETTINGS].get('display_columns', None)
@@ -139,6 +146,10 @@ class BrocoliApplication(object):
 
         app_name = 'Brocoli-{} - {}'.format(__version__, conn_name)
         self.root.title(app_name)
+
+    def cleanup(self):
+        if self.tree_widget.catalog is not None:
+            self.tree_widget.catalog.close()
 
 
 def main():
