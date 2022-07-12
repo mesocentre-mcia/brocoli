@@ -112,7 +112,7 @@ class HostnameField(TextField):
     """
     A TextField accepting host names only
     """
-    __hostname_re = re.compile('^([_\-\d\w]+(\.)?)*$')
+    __hostname_re = re.compile('^[_\-\d\w\.]+$')
 
     def __init__(self, text, default_value='', tags=None):
         super(HostnameField, self).__init__(text, default_value, self.validate,
