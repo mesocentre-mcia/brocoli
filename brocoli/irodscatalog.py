@@ -194,7 +194,11 @@ class iRODSCatalogBase(catalog.Catalog):
 
         self.dom = ModifiedDataObjectManager(self.session)
         self.cm = self.session.collections
-        self.am = self.session.permissions
+        try:
+            self.am = self.session.acls
+        except AttributeError:
+            # prc < 2.0.0
+            self.am = self.session.permissions
 
     def close(self):
         self.session.cleanup()
@@ -626,7 +630,7 @@ class iRODSCatalogBase(catalog.Catalog):
                     yield y
             except irods.exception.USER_CHKSUM_MISMATCH as e:
                 # remove object from catalog?
-                #self.dom.unlink(irods_path, force=True)
+                # self.dom.unlink(irods_path, force=True)
 
                 # mark failed and reraise
                 os[sp].fail()
@@ -692,7 +696,7 @@ class iRODSCatalogBase(catalog.Catalog):
 
         i = 0
         for f in files:
-            osl[f].size=1
+            osl[f].size = 1
             osl[f].in_progress(None)
             self.dom.unlink(f, force=True)
             osl[f].done()
@@ -715,8 +719,8 @@ class iRODSCatalogBase(catalog.Catalog):
 
         message_body = message.CollectionRequest(
             collName=path,
-            flags = 0,
-            oprType = oprType,
+            flags=0,
+            oprType=oprType,
             KeyValPair_PI=message.StringStringMap(options)
         )
         msg = message.iRODSMessage('RODS_API_REQ', msg=message_body,
@@ -740,7 +744,7 @@ class iRODSCatalogBase(catalog.Catalog):
 
         i = 0
         for d in directories:
-            osl[d].size=1
+            osl[d].size = 1
             osl[d].in_progress(None)
             for y in self._coll_remove_yield(d, recurse=True, force=True):
                 yield i, number
