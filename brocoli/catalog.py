@@ -67,7 +67,6 @@ class Catalog(object):
         """
         raise NotImplementedError
 
-
     def download_files(self, pathlist, destdir, osl):
         """
         Downloads files from the catalog pathlist to local destdir.
