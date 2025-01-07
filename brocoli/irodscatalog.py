@@ -18,6 +18,7 @@ import base64
 import collections
 import datetime
 import ssl
+from datetime import timezone
 
 from six import print_
 from six.moves import tkinter as tk
@@ -293,9 +294,7 @@ class iRODSCatalogBase(catalog.Catalog):
             dobj['user'] = r[DataObject.owner_name]
             dobj['nreplicas'] += 1
 
-            mtime = r[DataObject.modify_time]
-            if mtime > dobj['mtime']:
-                dobj['mtime'] = mtime
+            dobj['mtime'] = r[DataObject.modify_time]
 
             size = r[DataObject.size]
             if dobj['minsize'] is None or size < dobj['minsize']:
