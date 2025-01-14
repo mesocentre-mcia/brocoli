@@ -17,7 +17,7 @@ from . import catalog
 from . import preferences
 
 # Brocoli version string
-__version__ = '0.7.2'
+__version__ = '0.7.3'
 
 
 class ConnectionSwitcher:
