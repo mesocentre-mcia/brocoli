@@ -775,7 +775,7 @@ class iRODSCatalogBase(catalog.Catalog):
             acl = irods.access.iRODSAccess(access_name, obj.path, user_name,
                                            user_zone)
 
-            self.session.permissions.set(acl)
+            self.am.set(acl)
 
             return '#'.join([user_name, user_zone, access_name])
 
@@ -787,7 +787,7 @@ class iRODSCatalogBase(catalog.Catalog):
             acl = irods.access.iRODSAccess('null', obj.path, user_name,
                                            user_zone)
 
-            self.session.permissions.set(acl)
+            self.am.set(acl)
 
         acls_def = iRODSCatalogBase.acls_def(self.session.zone)
 
@@ -839,7 +839,7 @@ class iRODSCatalogBase(catalog.Catalog):
             name = 'inherit' if value else 'noinherit'
             acl = irods.access.iRODSAccess(name, path, '', '')
 
-            self.session.permissions.set(acl)
+            self.am.set(acl)
 
         f = form.BooleanField('Inherit:', inheritance,
                               state_change_cb=inheritance_changed)
